@@ -1,0 +1,39 @@
+{% extends "single_column.html" %}
+
+{% block main_column %}
+<h1 class="title">Trigger commit for</h1>
+<div class="box">
+{% include "commit_title.html" %}
+</div>
+
+<hr/>
+
+<h2 class="title is-4">Reverting:</h2>
+
+{% for revert, value in reverts.items() if value %}
+<div class="box">
+	{% with commit = repository.get_commit(revert) %}
+		{% include "commit_title.html" %}
+	{% endwith %}
+</div>
+{% else %}
+Nothing!
+{% endfor %}
+
+
+<div class="field is-grouped is-grouped-centered">
+	<p class="control">
+		<button class="button is-primary" hx-post={{ request.url }} hx-target="body">
+			Launch
+		</button>
+	</p>
+	{% if "back" in request.args %}
+	<p class="control">
+		<a class="button is-light" href={{ request.args["back"] }}>
+			Cancel
+		</a>
+	</p>
+	{% endif %}
+</div>
+
+{% endblock %}

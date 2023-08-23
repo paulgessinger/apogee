@@ -1,0 +1,91 @@
+<div id="pipeline-{{ pipeline.id }}" class="box" x-data="{ expanded: {{ 'true' if expanded else 'false' }} }">
+		<div class="columns">
+			<div class="column">
+				<p class="title is-7">
+					<span class="tag {% if pipeline.status == 'success' -%}
+					is-success
+					{% elif pipeline.status == 'failed' -%}
+					is-danger
+					{% elif pipeline.status == 'running' -%}
+					is-info
+					{% elif pipeline.status == 'skipped' -%}
+					is-warning
+					{% elif pipeline.status == 'pending' -%}
+					is-light
+					{%- endif -%}
+					">
+
+						<a href="{{ pipeline.web_url }}">Pipeline #{{ pipeline.id }}</a>: {{pipeline.status|upper}}
+					</span>
+				</p>
+				<p class="subtitle is-7">
+					Created at {{ pipeline.created_at|datefmt }}
+				</p>
+			</div>
+			<div class="column is-narrow">
+				<div class="field is-grouped">
+					<p class="control" x-data="{ clicked: false }">
+						<button class="button" 
+							:class="clicked ? 'is-loading' : ''"
+							x-on:click="clicked = true"
+							hx-post="{{ url_for("reload_pipeline", pipeline_id=pipeline.id) }}"
+			 				hx-swap="outerHTML"
+							hx-target="#pipeline-{{ pipeline.id }}"
+							>Reload</button>
+					</p>
+					<p class="control">
+						<button class="button" @click="expanded = !expanded" x-html=" expanded ? 'Less' : 'More'"></button>
+					</p>
+				</div>
+			</div>
+		</div>
+		{# hard code stages for now #}
+		{#{% set stages = pipeline.jobs|map(attribute="stage")|list|sort|unique %}#}
+		{% set stages = ["build", "test", "report"] %}
+
+		<div class="block" x-show="expanded" x-collapse>
+
+			<table class="table is-fullwidth">
+				<thead>
+					<tr>
+						<th>Variable</th>
+						<th>Value</th>
+					</tr>
+				</thead>
+				<tbody>
+				{% for key, value in pipeline.variables.items() if key != "TRIGGER_PAYLOAD" %}
+				<tr>
+					<td><code>{{ key }}</code></td>
+					<td>{{ value }}</td>
+				</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+
+
+			{% for stage in stages %}
+			{{ stage }}
+			{% set jobs = pipeline.jobs|selectattr("stage", "equalto", stage)|list %}
+
+			<span class="tags">
+				{% for job in jobs|sort(attribute="name") %}
+				<span class="tag {% if job.status == 'success' -%}
+				is-success
+				{% elif job.status == 'failed' -%}
+				is-danger
+				{% elif job.status == 'running' -%}
+				is-info
+				{% elif job.status == 'skipped' -%}
+				is-warning
+				{% elif job.status == 'pending' -%}
+				is-light
+				{%- endif -%}
+				">
+					<a href="{{ job.web_url }}">{{ job.name }}</a>
+				</span>
+				{% endfor %}
+			</span>
+			{% endfor %}
+		</div>
+
+	</div>

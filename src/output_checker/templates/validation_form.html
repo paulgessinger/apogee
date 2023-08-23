@@ -1,0 +1,14 @@
+<form method="POST" action="{{ url_for("add_validation") }}">
+	{{ form.csrf_token  }}
+	<div class="field">
+		<label class="label">{{ form.name.label }}</label>
+		<div class="control">
+			{{ form.name(class="input") }}
+			</div>
+	</div>
+	<div class="field is-grouped">
+		<div class="control">
+			<button class="button is-primary">Save</button>
+		</div>
+	</div>
+</form>

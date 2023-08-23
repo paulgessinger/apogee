@@ -1,0 +1,51 @@
+{#<div class="block has-text-centered">
+	<button class="button is-primary">Add</button>
+</div>
+#}
+
+<div class="box">
+
+	<div class="columns">
+		<div class="column">
+			{% include "commit_title.html" %}
+		</div>
+		<div class="column is-narrow">
+			<div class="field is-grouped">
+				<p class="control">
+					<a class="button is-primary" 
+				    hx-boost="true"
+						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url) }}">
+						Run pipeline</a>
+				<p>
+
+				<p class="control">
+				{% if request.endpoint != "commit_detail" %}
+					<a class="button" hx-boost="true"
+				href="{{ url_for("commit_detail", sha=commit.sha) }}">
+						Details</a>
+				{% else %}
+					<a class="button" hx-boost="true"
+				href="{{ url_for("timeline") }}">
+						Back</a>
+				{% endif %}
+				</p>
+
+				<p class="control">
+					<label class="checkbox">
+						<input 
+				type="checkbox"
+		hx-post="{{ url_for('toggle_revert', sha=commit.sha) }}"
+	hx-swap="outerHTML"
+ {% if reverts.get(commit.sha, False) %}checked{% endif %}> Revert
+					</label>
+				</p>
+			</div>
+		</div>
+	</div>
+
+	{% for pipeline in commit.sorted_pipelines(pipelines) %}
+		{% with pipeline = pipeline, expanded = expanded and loop.first %}
+			{% include "pipeline.html" %}
+		{% endwith %}
+	{% endfor %}
+</div>

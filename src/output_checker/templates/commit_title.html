@@ -1,0 +1,10 @@
+{% set subject = commit.commit.message.split("\n")[0]|trim %}
+
+<p class="title is-6">
+	{{ subject|pr_links|safe }}
+</p>
+<p class="subtitle is-6">
+@{{ commit.author.login }},
+{{ commit.commit.committer.date|datefmt }}
+<a href="{{ commit.html_url }}"><code>{{ commit.sha[:9] }}</code></a>
+</p>

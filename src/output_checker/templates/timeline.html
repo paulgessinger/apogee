@@ -1,0 +1,62 @@
+{% extends "two_column.html" %}
+
+{% block title %}
+Timeline
+{% endblock %}
+{% block subtitle %}
+Validation
+{% endblock %}
+
+{% block side_column %}
+side
+{% endblock %}
+
+{% block main_column %}
+<div class="field is-grouped">
+	  <p class="control">
+			<button class="button"
+						hx-post={{ url_for('timeline_reload_commits') }}
+						hx-target="#commits"
+						hx-indicator="#commits"
+						>
+						<span class="icon">
+							<ion-icon name="logo-github"></ion-icon>
+						</span>
+							<span>
+						Reload commits 
+							</span>
+			</button>
+		</p>
+	  <p class="control">
+		<button class="button"
+					hx-post={{ url_for('timeline_reload_pipelines') }}
+					hx-target="#commits"
+					hx-indicator="#commits"
+					>
+						<span class="icon">
+							<ion-icon name="logo-gitlab"></ion-icon>
+						</span>
+							<span>
+					Reload pipelines
+						</span>
+		</button>
+		</p>
+	  <p class="control">
+		<button class="button is-danger is-outlined"
+					hx-post={{ url_for('reset_reverts') }}
+					hx-target="#commits"
+					hx-indicator="#commits"
+		 			hx-confirm="Reset all reverts?"
+					>
+					Reset reverts
+		</button>
+		</p>
+</div>
+
+
+<hr/>
+<section id="commits">
+	{% include "commits.html" %}
+</section>
+{% endblock %}
+

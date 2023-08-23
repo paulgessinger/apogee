@@ -1,0 +1,21 @@
+{% extends "single_column.html" %}
+
+{% block title %}
+Choose validation
+{% endblock %}
+
+{% block main_column %}
+
+<div class="block">
+  {% for validation in validations %}
+  {{validation}}
+  {% else %}
+  No validations yet
+  {% endfor %}
+
+</div>
+<div class="block">
+  <a href="{{ url_for("add_validation") }}" class="button is-primary">New validation</a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<div class="container block">
+  <section class="hero">
+    <div class="hero-body">
+      <p class="title">
+        Configure build
+      </p>
+      <p class="subtitle">
+        Token owner: <strong>{{ user.login }}</strong>
+      </p>
+    </div>
+  </section>
+  <div class="columns">
+    <div class="column is-one-quarter">
+      <div class="box">
+        <p class="title">Existing builds</p>
+        First column
+      </div>
+    </div>
+    <div class="column">
+      <div class="box">
+        <p class="title">Commits on <code>main</code></p>
+        <div hx-trigger="load" hx-swap="innerHTML" hx-get="{{ url_for("commits") }}">
+          <progress class="progress is-small is-primary" max="100">15%</progress>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--
+<section class="section">
+	<div class="container">
+		<div class="block">
+			<section class="hero">
+				<div class="hero-body">
+					<p class="title">
+						Configure build
+					</p>
+					<p class="subtitle">
+						Token owner: <strong>{{ user.login }}</strong>
+					</p>
+				</div>
+			</section>
+			<div class="block">
+				<section id="errors">
+				</section>
+			</div>
+			<div class="container">
+				<div class="box" hx-trigger="load" hx-get="{{ url_for("commits") }}">
+					<progress class="progress is-small is-primary" max="100">15%</progress>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+-->
+{% endblock %}
