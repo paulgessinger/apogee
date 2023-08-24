@@ -36,6 +36,10 @@ class Repository(ABC):
         ...
 
     @abstractmethod
+    def commits(self) -> Dict[CommitHash, ExtendedCommit]:
+        ...
+
+    @abstractmethod
     def add_pipeline(
         self, pipeline: Pipeline, update_on_conflict: bool = False
     ) -> None:
@@ -53,26 +57,19 @@ class Repository(ABC):
     def pipelines(self) -> Dict[int, Pipeline]:
         ...
 
-    @abstractmethod
-    def reverts(self) -> Dict[CommitHash, bool]:
-        ...
-
-    @abstractmethod
-    def reset_reverts(self) -> None:
-        ...
-
-    @abstractmethod
-    def set_revert(self, sha: CommitHash, value: bool) -> None:
-        ...
-
-    @abstractmethod
-    def get_revert(self, sha: CommitHash) -> bool:
-        ...
-
     def toggle_revert(self, sha: CommitHash) -> bool:
-        result = not self.get_revert(sha)
-        self.set_revert(sha, result)
-        return result
+        commit = self.get_commit(sha)
+        if hasattr(commit, "revert"):
+            commit.revert = not commit.revert
+        else:
+            commit.revert = True
+        self.update_commit(commit)
+        return commit.revert
+
+    def reset_reverts(self):
+        for commit in self.commits().values():
+            commit.revert = False
+            self.update_commit(commit)
 
 
 class DuplicationError(Exception):

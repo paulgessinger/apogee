@@ -1,0 +1,62 @@
+<div class="block patch-form" id="{%- if patch.id is none -%}
+new-patch
+{%- else -%}
+patch-{{ patch.id }}
+{%- endif -%}">
+<form
+  hx-target="closest .patch-form"
+  hx-swap="outerHTML"
+{% if patch.id is none -%}
+  hx-post="{{ url_for('commit_patches', sha=commit.sha) }}"
+{%- else -%}
+  hx-put="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}"
+{%- endif %}
+>
+
+<div class="field is-horizontal">
+  <div class="field-body">
+    <div class="field">
+      <p class="control is-expanded">
+        <input name="url" class="input{{ ' is-danger' if error else '' }}{{' is-success' if saved else ''}}" placeholder="URL" value="{{ patch.url }}" />
+      </p>
+    </div>
+    <div class="field">
+      <p class="control is-grouped">
+        <button class="button is-primary is-outlined" type="submit">
+          <span class="icon">
+            <ion-icon name="checkmark-outline"></ion-icon>
+          </span>
+        </button>
+
+        {% if patch.id is not none %}
+        <button class="button is-light" 
+          hx-put="{{ url_for('commit_patch_move', sha=commit.sha, patch=patch.id, dir='up') }}"
+          hx-target="body"
+          {% if first %}disabled{% endif %}>
+          <span class="icon">
+            <ion-icon name="arrow-up-outline"></ion-icon>
+          </span>
+        </button>
+
+        <button class="button is-light" 
+          hx-put="{{ url_for('commit_patch_move', sha=commit.sha, patch=patch.id, dir='down') }}"
+          hx-target="body"
+          {% if last %}disabled{% endif %}>
+          <span class="icon">
+            <ion-icon name="arrow-down-outline"></ion-icon>
+          </span>
+        </button>
+
+        <button class="button is-danger is-outlined" hx-delete="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}">
+          <span class="icon">
+            <ion-icon name="close-outline"></ion-icon>
+          </span>
+        </button>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+
+</form>
+</div>

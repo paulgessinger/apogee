@@ -1,0 +1,32 @@
+{% extends "two_column.html" %}
+
+{% block hero %}
+
+{% with commit=commit %}
+{% include "commit_title.html" %}
+{% endwith %}
+
+{% endblock %}
+
+{% block side_column_menu %}
+{% include "commit_detail_menu.html" %}
+{% endblock %}
+
+{% block main_column %}
+
+<div class="box" id="commit-patch-edit">
+
+{% for patch in commit.patches %}
+  {% with commit=commit, patch=patch, first=loop.first, last=loop.last %}
+    {% include "patch_form.html" %}
+  {% endwith %}
+{% endfor %}
+
+
+{% with commit=commit, patch=create_patch %}
+{% include "patch_form.html" %}
+{% endwith %}
+
+</div>
+
+{% endblock %}

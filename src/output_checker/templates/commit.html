@@ -11,41 +11,56 @@
 		</div>
 		<div class="column is-narrow">
 			<div class="field is-grouped">
+				{% if commit.patches|length > 0 %}
+				<p class="control">
+					<a href="{{ url_for('commit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>
+				</p>
+				{% endif %}
 				<p class="control">
 					<a class="button is-primary" 
 				    hx-boost="true"
 						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url) }}">
 						Run pipeline</a>
-				<p>
+				</p>
 
-				<p class="control">
 				{% if request.endpoint != "commit_detail" %}
+				<p class="control">
 					<a class="button" hx-boost="true"
 				href="{{ url_for("commit_detail", sha=commit.sha) }}">
 						Details</a>
-				{% else %}
-					<a class="button" hx-boost="true"
-				href="{{ url_for("timeline") }}">
-						Back</a>
-				{% endif %}
 				</p>
+				{% endif %}
 
 				<p class="control">
-					<label class="checkbox">
+					<label class="checkbox mt-2">
 						<input 
 				type="checkbox"
 		hx-post="{{ url_for('toggle_revert', sha=commit.sha) }}"
 	hx-swap="outerHTML"
- {% if reverts.get(commit.sha, False) %}checked{% endif %}> Revert
+ {% if commit.revert %}checked{% endif %}> Revert
 					</label>
 				</p>
 			</div>
 		</div>
 	</div>
 
-	{% for pipeline in commit.sorted_pipelines(pipelines) %}
-		{% with pipeline = pipeline, expanded = expanded and loop.first %}
-			{% include "pipeline.html" %}
+	<div class="block">
+		{% include "commit_note.html" %}
+	</div>
+
+	{% if expanded %}
+		{% for pipeline in commit.sorted_pipelines(pipelines) %}
+			{% with pipeline = pipeline, expanded = expanded and loop.first %}
+					{% include "pipeline.html" %}
+			{% endwith %}
+		{% endfor %}
+	{% else %}
+		{% with pipeline = commit.sorted_pipelines(pipelines)|first, expanded = False %}
+				{% if pipeline is defined %}
+				{% include "pipeline.html" %}
+				{% endif %}
 		{% endwith %}
-	{% endfor %}
+	{% endif %}
+
+
 </div>

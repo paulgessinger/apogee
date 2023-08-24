@@ -1,24 +1,42 @@
 {% extends "single_column.html" %}
 
 {% block main_column %}
-<h1 class="title">Trigger commit for</h1>
+<h1 class="title">Trigger pipeline for</h1>
 <div class="box">
 {% include "commit_title.html" %}
 </div>
 
 <hr/>
 
+<div class="block">
 <h2 class="title is-4">Reverting:</h2>
 
-{% for revert, value in reverts.items() if value %}
+{% for commit in reverts %}
 <div class="box">
-	{% with commit = repository.get_commit(revert) %}
+	{% with commit = commit %}
 		{% include "commit_title.html" %}
 	{% endwith %}
 </div>
 {% else %}
 Nothing!
 {% endfor %}
+</div>
+
+<hr/>
+
+<div class="block">
+<h2 class="title is-4">Patches:</h2>
+
+<div class="content">
+<ol>
+{% for patch in patches %}
+<li><a href="{{ patch.url }}">{{ patch.url }}</a></li>
+{% else %}
+No patches!
+{% endfor %}
+</ol>
+</div>
+</div>
 
 
 <div class="field is-grouped is-grouped-centered">

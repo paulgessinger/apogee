@@ -35,6 +35,8 @@ class Pipeline(BaseModel):
 
     variables: dict[str, str] = Field(default_factory=dict)
 
+    last_refreshed_at: datetime = Field(default_factory=datetime.now)
+
     async def fetch(self, gl: GitLabAPI) -> None:
         self.jobs = [
             Job(**j)
@@ -48,3 +50,7 @@ class Pipeline(BaseModel):
         )
 
         self.variables = {v["key"]: v["value"] for v in variables}
+
+    @property
+    def last_refreshed_delta(self):
+        return datetime.now() - self.last_refreshed_at

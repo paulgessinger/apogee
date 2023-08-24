@@ -70,6 +70,10 @@ class ShelveRepository(Repository):
                 raise ValueError(f"Commit {sha} does not exist")
             return commits[sha]
 
+    def commits(self) -> Dict[CommitHash, ExtendedCommit]:
+        with self._shelf() as shelf:
+            return shelf.get("commits", {})
+
     def add_pipeline(self, pipeline: Pipeline, update_on_conflict: bool = False):
         try:
             with self._shelf() as shelf:
@@ -102,22 +106,3 @@ class ShelveRepository(Repository):
     def pipelines(self) -> Dict[int, Pipeline]:
         with self._shelf() as shelf:
             return shelf.get("pipelines", {})
-
-    def reverts(self) -> Dict[CommitHash, bool]:
-        with self._shelf() as shelf:
-            return shelf.get("reverts", {})
-
-    def reset_reverts(self) -> None:
-        with self._shelf() as shelf:
-            shelf["reverts"] = {}
-
-    def set_revert(self, sha: CommitHash, value: bool) -> None:
-        with self._shelf() as shelf:
-            reverts = shelf.get("reverts", {})
-            reverts[sha] = value
-            shelf["reverts"] = reverts
-
-    def get_revert(self, sha: CommitHash) -> bool:
-        with self._shelf() as shelf:
-            reverts = shelf.get("reverts", {})
-            return reverts.get(sha, False)

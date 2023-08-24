@@ -1,4 +1,16 @@
-{% extends "single_column.html" %}
+{% extends "two_column.html" %}
+
+{% block hero %}
+
+{% with commit=commit %}
+{% include "commit_title.html" %}
+{% endwith %}
+
+{% endblock %}
+
+{% block side_column_menu %}
+{% include "commit_detail_menu.html" %}
+{% endblock %}
 
 {% block main_column %}
 

@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import Dict
-from uuid import UUID
-from pydantic import Field
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field
 
 from output_checker.model import CommitHash
 from output_checker.model.github import Commit
@@ -17,8 +17,19 @@ IdType = UUID | CommitHash
 #  id: UUID = Field(default_factory=uuid.uuid4)
 
 
+class Patch(BaseModel):
+    id: UUID | None = Field(default_factory=uuid4)
+    url: str
+
+
 class ExtendedCommit(Commit):
     pipelines: set[int] = Field(default_factory=set)
+
+    revert: bool = False
+
+    patches: list[Patch] = Field(default_factory=list)
+
+    notes: str = ""
 
     def sorted_pipelines(
         self, all_pipelines: Dict[int, Pipeline]

@@ -15,11 +15,27 @@
 					{%- endif -%}
 					">
 
-						<a href="{{ pipeline.web_url }}">Pipeline #{{ pipeline.id }}</a>: {{pipeline.status|upper}}
+						<a 
+							x-tooltip.raw="{{ pipeline.status|upper }}"
+							href="{{ pipeline.web_url }}">Pipeline #{{ pipeline.id }}</a>
 					</span>
 				</p>
 				<p class="subtitle is-7">
-					Created at {{ pipeline.created_at|datefmt }}
+					Created
+					<span 
+						x-data="{ date: new Date('{{pipeline.created_at.isoformat()}}')  }" 
+						x-timeago="date"
+						x-tooltip.raw="{{ pipeline.created_at|datefmt }}">
+					</span>
+					{%- if pipeline.last_refreshed_at -%}
+					, last updated
+					<span 
+						x-data="{ date: new Date('{{pipeline.last_refreshed_at.isoformat()}}')  }" 
+						x-timeago="date"
+						x-tooltip.raw="{{ pipeline.last_refreshed_at|datefmt }}">
+						{{ humanize.naturaltime(pipeline.last_refreshed_delta) }}
+					</span>
+					{% endif %}
 				</p>
 			</div>
 			<div class="column is-narrow">
@@ -31,7 +47,10 @@
 							hx-post="{{ url_for("reload_pipeline", pipeline_id=pipeline.id) }}"
 			 				hx-swap="outerHTML"
 							hx-target="#pipeline-{{ pipeline.id }}"
-							>Reload</button>
+							>
+							<span class="icon"><ion-icon name="refresh-outline"></ion-icon></span>
+							<span>Reload</span>
+						</button>
 					</p>
 					<p class="control">
 						<button class="button" @click="expanded = !expanded" x-html=" expanded ? 'Less' : 'More'"></button>
@@ -43,7 +62,9 @@
 		{#{% set stages = pipeline.jobs|map(attribute="stage")|list|sort|unique %}#}
 		{% set stages = ["build", "test", "report"] %}
 
+
 		<div class="block" x-show="expanded" x-collapse>
+			<hr/>
 
 			<table class="table is-fullwidth">
 				<thead>
@@ -62,6 +83,7 @@
 				</tbody>
 			</table>
 
+			<hr/>
 
 			{% for stage in stages %}
 			{{ stage }}
@@ -80,7 +102,8 @@
 				{% elif job.status == 'pending' -%}
 				is-light
 				{%- endif -%}
-				">
+				"
+				x-tooltip.raw="{{ job.status|upper }}">
 					<a href="{{ job.web_url }}">{{ job.name }}</a>
 				</span>
 				{% endfor %}

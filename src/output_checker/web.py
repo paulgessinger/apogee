@@ -1,9 +1,11 @@
+from datetime import datetime
 import functools
 import itertools
 import html
 from contextvars import ContextVar
 import re
 from typing import cast
+from uuid import UUID
 import flask
 from flask import (
     flash,
@@ -15,13 +17,16 @@ from flask import (
 )
 from flask_session import Session
 from werkzeug.local import LocalProxy
+import markdown
+
+from output_checker.forms import PatchForm
 from output_checker.model.gitlab import Pipeline
-from output_checker.model.record import ExtendedCommit
+from output_checker.model.record import ExtendedCommit, Patch
 
 from output_checker.repository import Repository
 from output_checker.repository.shelve import ShelveRepository
 
-
+import humanize
 from gidgethub.aiohttp import GitHubAPI
 import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
@@ -55,7 +60,8 @@ def inject_contents():
     return {
         "repository": repository,
         "pipelines": repository.pipelines(),
-        "reverts": repository.reverts(),
+        "humanize": humanize,
+        "zip": zip,
     }
 
 
@@ -81,6 +87,11 @@ def pr_links(s):
         )
 
     return re.sub(r"#(\d+)", sub, s)
+
+
+@app.template_filter("markdown")
+def render_markdown(s):
+    return markdown.markdown(s)
 
 
 def with_session(fn):
@@ -253,24 +264,150 @@ def commit_detail(sha):
     return render_template("commit_detail.html", commit=commit)
 
 
+@app.route("/commit/<sha>/patches", methods=["GET", "POST"])
+def commit_patches(sha):
+    commit = repository.get_commit(sha)
+
+    if request.method == "GET":
+        return render_template(
+            "commit_patches.html",
+            commit=commit,
+            create_patch=Patch(id=None, url=""),
+        )
+
+    elif request.method == "POST":
+        url = request.form.get("url", "").strip()
+        if len(url) == 0:
+            return render_template(
+                "patch_form.html",
+                commit=commit,
+                patch=Patch(id=None, url=url),
+                error=True,
+            )
+        patch = Patch(url=url)
+        commit.patches.append(patch)
+        repository.update_commit(commit)
+
+        return render_template(
+            "patch_form.html", commit=commit, patch=patch
+        ) + render_template(
+            "patch_form.html", commit=commit, patch=Patch(id=None, url="")
+        )
+
+
+@app.route("/commit/<sha>/patch/<patch>/move", methods=["PUT"])
+def commit_patch_move(sha, patch):
+    commit = repository.get_commit(sha)
+    idx = [p.id for p in commit.patches].index(UUID(patch))
+
+    direction = request.args["dir"]
+
+    if (direction == "up" and idx == 0) or (
+        direction == "down" and idx == len(commit.patches) - 1
+    ):
+        return "no", 400
+
+    if direction == "up":
+        a, b = commit.patches[idx], commit.patches[idx - 1]
+        commit.patches[idx] = b
+        commit.patches[idx - 1] = a
+    elif direction == "down":
+        a, b = commit.patches[idx], commit.patches[idx + 1]
+        commit.patches[idx] = b
+        commit.patches[idx + 1] = a
+    repository.update_commit(commit)
+    return render_template(
+        "commit_patches.html",
+        commit=commit,
+        create_patch=Patch(id=None, url=""),
+    )
+
+
+@app.route("/commit/<sha>/patch/<patch>", methods=["PUT", "DELETE"])
+def commit_patch(sha, patch):
+    commit = repository.get_commit(sha)
+
+    if request.method == "PUT":
+        url = request.form.get("url", "").strip()
+        valid = len(url) > 0
+        idx = [p.id for p in commit.patches].index(UUID(patch))
+        commit.patches[idx].url = url
+        patch = commit.patches[idx]
+        if valid:
+            repository.update_commit(commit)
+        return render_template(
+            "patch_form.html", commit=commit, patch=patch, error=not valid, saved=valid
+        )
+    if request.method == "DELETE":
+        idx = [p.id for p in commit.patches].index(UUID(patch))
+        del commit.patches[idx]
+        repository.update_commit(commit)
+        return ""
+
+
+@app.route("/commit/<sha>/note")
+def commit_note(sha):
+    commit = repository.get_commit(sha)
+
+    return render_template("commit_note.html", commit=commit)
+
+
+@app.route("/commit/<sha>/note/edit", methods=["GET", "POST"])
+def commit_note_edit(sha):
+    commit = repository.get_commit(sha)
+
+    if request.method == "POST":
+        content = request.form.get("content", "")
+        commit.notes = content
+        repository.update_commit(commit)
+
+        return render_template("commit_note.html", commit=commit)
+
+    content = getattr(commit, "notes", "")
+
+    return render_template("commit_note_form.html", commit=commit, content=content)
+
+
 @app.route("/run_pipeline/<sha>", methods=["GET", "POST"])
 @require_login
 @with_gitlab
 @with_session
 async def run_pipeline(gl: GitLabAPI, session: aiohttp.ClientSession, sha):
     commit = repository.get_commit(sha)
+
+    seq = list(repository.commit_sequence())
+    seq = seq[seq.index(commit) :]
+
+    reverts = [c for c in seq if c.revert]
+    reverts.reverse()
+    patches = sum([c.patches for c in seq], [])
+    patches.reverse()
+
     if request.method == "GET":
-        return render_template("run_pipeline.html", commit=commit)
+        return render_template(
+            "run_pipeline.html", commit=commit, reverts=reverts, patches=patches
+        )
     elif request.method == "POST":
         url = f"{config.GITLAB_URL}/api/v4/projects/{config.GITLAB_PROJECT_ID}/trigger/pipeline"
-        print(url)
+
+        variables = {
+            "SOURCE_SHA": sha,
+            "NO_REPORT": "1",
+            "NO_CANARY": "1",
+        }
+
+        if len(reverts) > 0:
+            variables["REVERT_SHAS"] = ",".join(c.sha for c in reverts)
+
+        if len(patches) > 0:
+            variables["PATCH_URLS"] = ",".join(p.url for p in patches)
 
         async with session.post(
             url,
             data={
                 "token": config.GITLAB_TRIGGER_TOKEN,
                 "ref": "main",
-                "variables[SOURCE_SHA]": sha,
+                **{f"variables[{k}]": v for k, v in variables.items()},
             },
         ) as resp:
             resp.raise_for_status()

@@ -1,0 +1,17 @@
+<form hx-post={{ url_for('commit_note_edit', sha=commit.sha) }}>
+	<div class="field">
+		<textarea class="textarea is-fullwidth" placeholder="" name="content" rows="{{ content.split('\n')|length }}">{{ content }}</textarea>
+	</div>
+
+	<div class="field is-grouped">
+		<div class="control">
+			<button class="button is-primary" type="submit">Save</button>
+		</div>
+		<div class="control">
+			<button class="button"
+			 hx-trigger="click"
+			 hx-target="closest form"
+			 hx-get="{{ url_for('commit_note', sha=commit.sha) }}">Cancel</button>
+		</div>
+	</div>
+</form>

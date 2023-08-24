@@ -673,6 +673,20 @@ tornado = ["tornado"]
 treq = ["treq (<21)", "twisted[tls]"]
 
 [[package]]
+name = "humanize"
+version = "4.8.0"
+description = "Python humanize utilities"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "humanize-4.8.0-py3-none-any.whl", hash = "sha256:8bc9e2bb9315e61ec06bf690151ae35aeb65651ab091266941edf97c90836404"},
+    {file = "humanize-4.8.0.tar.gz", hash = "sha256:9783373bf1eec713a770ecaa7c2d7a7902c98398009dfa3d8a2df91eec9311e8"},
+]
+
+[package.extras]
+tests = ["freezegun", "pytest", "pytest-cov"]
+
+[[package]]
 name = "idna"
 version = "3.4"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -710,6 +724,21 @@ MarkupSafe = ">=2.0"
 
 [package.extras]
 i18n = ["Babel (>=2.7)"]
+
+[[package]]
+name = "markdown"
+version = "3.4.4"
+description = "Python implementation of John Gruber's Markdown."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "Markdown-3.4.4-py3-none-any.whl", hash = "sha256:a4c1b65c0957b4bd9e7d86ddc7b3c9868fb9670660f6f99f6d1bca8954d5a941"},
+    {file = "Markdown-3.4.4.tar.gz", hash = "sha256:225c6123522495d4119a90b3a3ba31a1e87a70369e03f14799ea9c0d7183a3d6"},
+]
+
+[package.extras]
+docs = ["mdx-gh-links (>=0.2)", "mkdocs (>=1.0)", "mkdocs-nature (>=0.4)"]
+testing = ["coverage", "pyyaml"]
 
 [[package]]
 name = "markupsafe"
@@ -1267,4 +1296,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "55ce66e9c67c80668bb85b438a54d444d1d8d5fe0f634a6f22992eb416347bc9"
+content-hash = "9769668e3812c8793c7397aca70bab1d8a1f9433faac58025205daabbdb217ee"

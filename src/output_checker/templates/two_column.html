@@ -4,27 +4,33 @@
 
 
 <div class="container block">
-  <section class="hero">
+  <section class="hero is-primary mb-5">
     <div class="hero-body">
-      <p class="title">
-        {% block title %}{% endblock %}
-      </p>
-      <p class="subtitle">
-        {% block subtitle %}{% endblock %}
-      </p>
+      {% block hero %}{% endblock %}
     </div>
   </section>
   <div class="columns">
     <div class="column is-one-quarter">
       <div class="box">
 				{% block side_column %}{% endblock %}
+
+        <aside class="menu" hx-boost="true">
+          <p class="menu-label">
+            General
+          </p>
+          <ul class="menu-list">
+            <li><a
+                class="{{ 'is-active' if request.endpoint == 'timeline' else '' }}"
+                href="{{ url_for("timeline") }}">Timeline</a></li>
+          </ul>
+
+          {% block side_column_menu %}{% endblock %}
+        </aside>
       </div>
     </div>
     <div class="column">
-      {% include "notifications.html" %}
-      <div class="box">
+        {% include "notifications.html" %}
         {% block main_column %}{% endblock %}
-      </div>
     </div>
   </div>
 </div>

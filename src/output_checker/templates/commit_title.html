@@ -6,5 +6,5 @@
 <p class="subtitle is-6">
 @{{ commit.author.login }},
 {{ commit.commit.committer.date|datefmt }}
-<a href="{{ commit.html_url }}"><code>{{ commit.sha[:9] }}</code></a>
+<a href="{{ commit.html_url }}" x-tooltip.raw="{{ commit.sha }}"><code>{{ commit.sha[:9] }}</code></a>
 </p>

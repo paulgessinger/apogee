@@ -1,0 +1,24 @@
+<div class="commit-note">
+{% if not commit.notes or commit.notes|length == 0 %}
+<a class="" 
+ hx-target="closest .commit-note"
+ hx-swap="outerHTML"
+ hx-get="{{ url_for('commit_note_edit', sha=commit.sha) }}">
+	<span>Add note</span>
+</a>
+{% else %}
+<article class="message">
+	<div class="message-body">
+		<div class="content">
+			{{ (commit.notes or "No notes") | markdown | safe }}
+		</div>
+		<a class="" 
+		 hx-target="closest .commit-note"
+		 hx-swap="outerHTML"
+		 hx-get="{{ url_for('commit_note_edit', sha=commit.sha) }}">
+			<span>Edit</span>
+		</a>
+	</div>
+</article>
+{% endif %}
+</div>
