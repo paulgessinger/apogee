@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container block">
+	<div class="columns is-centered">
+		<div class="column is-narrow">
+			<div class="box mt-5">
+
+				<a href="{{ url_for('login') }}" class="button is-primary is-fullwidth">
+						<span class="icon">
+							<ion-icon name="logo-github"></ion-icon>
+						</span>
+					<span>Login with GitHub</span>
+				</a>
+
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock %}

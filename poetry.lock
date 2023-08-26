@@ -673,6 +673,20 @@ tornado = ["tornado"]
 treq = ["treq (<21)", "twisted[tls]"]
 
 [[package]]
+name = "github-flask"
+version = "3.2.0"
+description = "GitHub extension for Flask microframework"
+optional = false
+python-versions = "*"
+files = [
+    {file = "GitHub-Flask-3.2.0.tar.gz", hash = "sha256:24600b720f698bac10667b76b136995ba7821d884e58b27e2a18ca0e4760c786"},
+]
+
+[package.dependencies]
+Flask = "*"
+requests = "*"
+
+[[package]]
 name = "humanize"
 version = "4.8.0"
 description = "Python humanize utilities"
@@ -1296,4 +1310,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "9769668e3812c8793c7397aca70bab1d8a1f9433faac58025205daabbdb217ee"
+content-hash = "fe6b8d879243bcd9836a698a23b942c76e3bc20beccbde1d927fbe3bb65e01fe"

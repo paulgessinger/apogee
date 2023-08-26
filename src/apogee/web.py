@@ -9,6 +9,7 @@ from uuid import UUID
 import flask
 from flask import (
     flash,
+    g,
     render_template,
     session as web_session,
     redirect,
@@ -18,6 +19,7 @@ from flask import (
 from flask_session import Session
 from werkzeug.local import LocalProxy
 import markdown
+from flask_github import GitHub
 
 from apogee.forms import PatchForm
 from apogee.model.gitlab import Pipeline
@@ -48,6 +50,7 @@ app.config.from_prefixed_env()
 app.config["SESSION_TYPE"] = "filesystem"
 
 Session(app)
+github = GitHub(app)
 
 
 @app.context_processor
@@ -62,6 +65,7 @@ def inject_contents():
         "pipelines": repository.pipelines(),
         "humanize": humanize,
         "zip": zip,
+        "user": g.user if "user" in g else None,
     }
 
 
@@ -108,7 +112,16 @@ def require_login(fn):
     @functools.wraps(fn)
     async def wrapped(*args, **kwargs):
         if "gh_token" not in web_session:
-            return redirect(url_for("login"))
+            return redirect(url_for("index"))
+
+        if "gh_user" not in web_session:
+            async with aiohttp.ClientSession() as session:
+                gh = GitHubAPI(
+                    session, "apogee", oauth_token=str(web_session["gh_token"])
+                )
+                web_session["gh_user"] = await gh.getitem("/user")
+        g.user = web_session["gh_user"]
+
         return await fn(*args, **kwargs)
 
     return wrapped
@@ -140,6 +153,14 @@ def with_gitlab(fn):
 
 
 @app.route("/")
+def index():
+    if hasattr(g, "user") and g.user is not None:
+        return redirect(url_for("timeline"))
+
+    return render_template("index.html")
+
+
+@app.route("/timeline")
 @with_github
 async def timeline(gh: GitHubAPI):
     commits = list(itertools.islice(repository.commit_sequence(), config.MAX_COMMITS))
@@ -440,13 +461,37 @@ async def token_valid(token):
 
 @app.route("/login", methods=["GET", "POST"])
 async def login():
-    error = None
-    token = None
-    if request.method == "POST":
-        token = request.form.get("gh_token")
-        if token is None or len(token) == "" or not await token_valid(token):
-            error = "Invalid token"
-        else:
-            web_session["gh_token"] = token
-            return redirect(url_for("timeline"))
-    return render_template("login.html", error=error, token=token)
+    return github.authorize()
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    g.user = None
+    del web_session["gh_token"]
+    del web_session["gh_user"]
+    if is_htmx:
+        return "", 200, {"HX-Redirect": url_for("index")}
+    return redirect(url_for("index"))
+
+
+@app.route("/github-callback")
+@github.authorized_handler
+def authorized(oauth_token):
+    next_url = request.args.get("next") or url_for("timeline")
+
+    web_session["gh_token"] = oauth_token
+
+    return redirect(next_url)
+
+    #  if oauth_token is None:
+    #  flash("Authorization failed.")
+    #  return redirect(next_url)
+
+    #  user = User.query.filter_by(github_access_token=oauth_token).first()
+    #  if user is None:
+    #  user = User(oauth_token)
+    #  db_session.add(user)
+
+    #  user.github_access_token = oauth_token
+    #  db_session.commit()
+    #  return redirect(next_url)

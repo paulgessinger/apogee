@@ -42,3 +42,11 @@ class Commit(BaseModel):
             return None
         else:
             return int(m.group(1))
+
+
+class User(BaseModel):
+    login: str
+    id: int
+    url: str
+    html_url: str
+    avatar_url: str

@@ -23,6 +23,7 @@ gidgetlab = "^1.0.0"
 cachetools = "^5.3.1"
 humanize = "^4.8.0"
 markdown = "^3.4.4"
+github-flask = "^3.2.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8.0"
