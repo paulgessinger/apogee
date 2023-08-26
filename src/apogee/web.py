@@ -19,12 +19,12 @@ from flask_session import Session
 from werkzeug.local import LocalProxy
 import markdown
 
-from output_checker.forms import PatchForm
-from output_checker.model.gitlab import Pipeline
-from output_checker.model.record import ExtendedCommit, Patch
+from apogee.forms import PatchForm
+from apogee.model.gitlab import Pipeline
+from apogee.model.record import ExtendedCommit, Patch
 
-from output_checker.repository import Repository
-from output_checker.repository.shelve import ShelveRepository
+from apogee.repository import Repository
+from apogee.repository.shelve import ShelveRepository
 
 import humanize
 from gidgethub.aiohttp import GitHubAPI
@@ -32,8 +32,8 @@ import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 
-from output_checker import config
-from output_checker.util import gather_limit
+from apogee import config
+from apogee.util import gather_limit
 
 _repository_var = ContextVar("repository")
 repository: Repository = cast(Repository, LocalProxy(_repository_var))
@@ -448,5 +448,5 @@ async def login():
             error = "Invalid token"
         else:
             web_session["gh_token"] = token
-            return redirect(url_for("index"))
+            return redirect(url_for("timeline"))
     return render_template("login.html", error=error, token=token)

@@ -2,7 +2,7 @@ from datetime import datetime
 from gidgetlab.abc import GitLabAPI
 from pydantic import BaseModel, Field
 
-from output_checker.model import CommitHash
+from apogee.model import CommitHash
 
 
 class Job(BaseModel):

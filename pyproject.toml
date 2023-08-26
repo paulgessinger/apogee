@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "output-checker"
+name = "apogee"
 version = "0.1.0"
 description = ""
 authors = ["Paul Gessinger <hello@paulgessinger.com>"]
 license = "MPLv2"
 packages = [
-    { include = "output_checker", from = "src" },
+    { include = "apogee", from = "src" },
 ]
 
 [tool.poetry.dependencies]

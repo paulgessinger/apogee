@@ -3,7 +3,7 @@ import re
 
 from pydantic import BaseModel
 
-from output_checker.model import CommitHash
+from apogee.model import CommitHash
 
 
 class User(BaseModel):

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Generator
 from typing import Dict, List
-from output_checker.model import CommitHash
+from apogee.model import CommitHash
 
-from output_checker.model.gitlab import Pipeline
+from apogee.model.gitlab import Pipeline
 
-from output_checker.model.record import ExtendedCommit
+from apogee.model.record import ExtendedCommit
 
 
 class Repository(ABC):

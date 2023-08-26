@@ -3,9 +3,9 @@ from typing import Dict
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
-from output_checker.model import CommitHash
-from output_checker.model.github import Commit
-from output_checker.model.gitlab import Pipeline
+from apogee.model import CommitHash
+from apogee.model.github import Commit
+from apogee.model.gitlab import Pipeline
 
 IdType = UUID | CommitHash
 

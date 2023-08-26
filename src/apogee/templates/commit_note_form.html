@@ -1,6 +1,6 @@
 <form hx-post={{ url_for('commit_note_edit', sha=commit.sha) }}>
 	<div class="field">
-		<textarea class="textarea is-fullwidth" placeholder="" name="content" rows="{{ content.split('\n')|length }}">{{ content }}</textarea>
+		<textarea class="textarea is-fullwidth" placeholder="" name="content" rows="{{ content.split('\n')|length + 5 }}">{{ content }}</textarea>
 	</div>
 
 	<div class="field is-grouped">
