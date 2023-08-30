@@ -1,5 +1,5 @@
 <div class="commit-note">
-{% if not commit.notes or commit.notes|length == 0 %}
+{% if not commit.note or commit.note|length == 0 %}
 <a class="" 
  hx-target="closest .commit-note"
  hx-swap="outerHTML"
@@ -10,7 +10,7 @@
 <article class="message">
 	<div class="message-body">
 		<div class="content">
-			{{ (commit.notes or "No notes") | markdown | safe }}
+			{{ (commit.note or "No notes") | markdown | safe }}
 		</div>
 		<a class="" 
 		 hx-target="closest .commit-note"

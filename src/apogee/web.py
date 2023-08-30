@@ -16,23 +16,28 @@ from flask import (
     url_for,
     request,
 )
+from flask_migrate import Migrate
 from flask_session import Session
 from werkzeug.local import LocalProxy
 import markdown
 from flask_github import GitHub
-
-from apogee.forms import PatchForm
-from apogee.model.gitlab import Pipeline
-from apogee.model.record import ExtendedCommit, Patch
-
-from apogee.repository import Repository
-from apogee.repository.shelve import ShelveRepository
-
+from flask_sqlalchemy import SQLAlchemy
 import humanize
 from gidgethub.aiohttp import GitHubAPI
 import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
+from aiostream import stream
+
+from apogee.forms import PatchForm
+from apogee.model.gitlab import Pipeline
+from apogee.model.github import Commit
+from apogee.model.record import ExtendedCommit, Patch
+from apogee.repository import Repository
+from apogee.repository.shelve import ShelveRepository
+from apogee.model.db import db
+from apogee.model import db as model
+
 
 from apogee import config
 from apogee.util import gather_limit
@@ -51,6 +56,10 @@ app.config["SESSION_TYPE"] = "filesystem"
 
 Session(app)
 github = GitHub(app)
+
+db.init_app(app)
+migrate = Migrate(app, db)
+
 
 
 @app.context_processor
@@ -163,7 +172,8 @@ def index():
 @app.route("/timeline")
 @with_github
 async def timeline(gh: GitHubAPI):
-    commits = list(itertools.islice(repository.commit_sequence(), config.MAX_COMMITS))
+    # commits = list(itertools.islice(repository.commit_sequence(), config.MAX_COMMITS))
+    commits = db.session.execute(db.select(model.Commit)).scalars().all()
     return render_template(
         "timeline.html",
         commits=commits,
@@ -177,30 +187,73 @@ async def timeline_reload_commits(gh: GitHubAPI):
     seq = list(repository.commit_sequence())
     last_commit = seq[0] if len(seq) > 0 else None
 
-    fetched_commits = []
+    n_fetched = 0
 
+    # this is inefficient and manual, but we limit how many commits we consume so there's an upper limit
     async for data in gh.getiter(f"/repos/{config.REPOSITORY}/commits"):
-        if len(fetched_commits) >= config.MAX_COMMITS:
+        if n_fetched >= config.MAX_COMMITS:
             break
 
-        commit = ExtendedCommit(**data)
+        api_commit = Commit(**data)
 
-        if last_commit is not None and commit.sha == last_commit.sha:
-            break
+        author = db.session.execute(
+            db.select(model.GitHubUser).filter_by(id=api_commit.author.id)
+        ).scalar_one_or_none()
 
-        fetched_commits.append(commit)
+        if author is None:
+            author = model.GitHubUser(id=api_commit.author.id, login=api_commit.author.login)
+            db.session.add(author)
 
-    for commit in fetched_commits:
-        repository.add_commit(commit, update_on_conflict=True)
-    seq = fetched_commits + seq
+        committer = db.session.execute(
+            db.select(model.GitHubUser).filter_by(id=api_commit.committer.id)
+        ).scalar_one_or_none()
 
-    repository.save_commit_sequence((commit.sha for commit in seq))
+        if committer is None:
+            committer = model.GitHubUser(id=api_commit.committer.id, login=api_commit.committer.login)
+            db.session.add(committer)
 
-    flash(f"Fetched {len(fetched_commits)} commits", "success")
+        existing_commit = db.session.execute(
+            db.select(model.Commit).filter_by(sha=api_commit.sha)
+        )
+
+        commit = model.Commit.from_api(api_commit)
+        commit.author = author
+        commit.committer = committer
+        if existing_commit is None:
+            db.session.add(commit)
+        else:
+            db.session.merge(commit)
+
+        
+
+        n_fetched += 1
+
+    db.session.commit()
+        # fetched_commits[commit.sha] = commit
+        # fetched_commits_seq.append(commit.sha)
+
+    # for existing in db.session.execute(db.select(model.Commit).filter(model.Commit.sha.in_([c.sha for c in fetched_commits.values()]))):
+    #     commit: Commit = fetched_commits.pop(existing.sha)
+    #     db_commit = model.Commit(sha=commit.sha, url=commit.url)
+    #     db.session.merge()
+
+    #     commit = ExtendedCommit(**data)
+
+    #     if last_commit is not None and commit.sha == last_commit.sha:
+    #         break
+
+
+    # for commit in fetched_commits:
+    #     repository.add_commit(commit, update_on_conflict=True)
+    # seq = fetched_commits + seq
+
+    # repository.save_commit_sequence((commit.sha for commit in seq))
+
+    flash(f"Fetched {n_fetched} commits", "success")
 
     return render_template(
         "commits.html",
-        commits=seq[: config.MAX_COMMITS],
+        commits=[],
     )
 
 
@@ -368,23 +421,24 @@ def commit_patch(sha, patch):
 
 @app.route("/commit/<sha>/note")
 def commit_note(sha):
-    commit = repository.get_commit(sha)
+
+    commit = db.get_or_404(model.Commit, sha)
 
     return render_template("commit_note.html", commit=commit)
 
 
 @app.route("/commit/<sha>/note/edit", methods=["GET", "POST"])
 def commit_note_edit(sha):
-    commit = repository.get_commit(sha)
+    commit = db.get_or_404(model.Commit, sha)
 
     if request.method == "POST":
         content = request.form.get("content", "")
-        commit.notes = content
-        repository.update_commit(commit)
+        commit.note = content
+        db.session.commit()
 
         return render_template("commit_note.html", commit=commit)
 
-    content = getattr(commit, "notes", "")
+    content = commit.note
 
     return render_template("commit_note_form.html", commit=commit, content=content)
 

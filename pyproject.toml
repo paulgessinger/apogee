@@ -24,6 +24,10 @@ cachetools = "^5.3.1"
 humanize = "^4.8.0"
 markdown = "^3.4.4"
 github-flask = "^3.2.0"
+flask-sqlalchemy = "^3.0.5"
+flask-migrate = "^4.0.4"
+sqlalchemy = {extras = ["mypy"], version = "^2.0.20"}
+aiostream = "^0.4.5"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8.0"
