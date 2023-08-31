@@ -16,7 +16,7 @@
 
 <div class="box" id="commit-patch-edit">
 
-{% for patch in commit.patches %}
+{% for patch in commit.patches|sort(attribute="order") %}
   {% with commit=commit, patch=patch, first=loop.first, last=loop.last %}
     {% include "patch_form.html" %}
   {% endwith %}

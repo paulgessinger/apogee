@@ -48,21 +48,19 @@
 		{% include "commit_note.html" %}
 	</div>
 
-	{#
 	{% if expanded %}
-		{% for pipeline in commit.sorted_pipelines(pipelines) %}
+		{% for pipeline in commit.pipelines %}
 			{% with pipeline = pipeline, expanded = expanded and loop.first %}
 					{% include "pipeline.html" %}
 			{% endwith %}
 		{% endfor %}
 	{% else %}
-		{% with pipeline = commit.sorted_pipelines(pipelines)|first, expanded = False %}
+		{% with pipeline = commit.pipelines|first, expanded = False %}
 				{% if pipeline is defined %}
 				{% include "pipeline.html" %}
 				{% endif %}
 		{% endwith %}
 	{% endif %}
-	#}
 
 
 </div>

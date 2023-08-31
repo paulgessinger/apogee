@@ -1,4 +1,5 @@
 from datetime import datetime
+import copy
 import functools
 import itertools
 import html
@@ -27,7 +28,7 @@ from gidgethub.aiohttp import GitHubAPI
 import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
-from aiostream import stream
+import sqlalchemy
 
 from apogee.forms import PatchForm
 from apogee.model.gitlab import Pipeline
@@ -59,7 +60,6 @@ github = GitHub(app)
 
 db.init_app(app)
 migrate = Migrate(app, db)
-
 
 
 @app.context_processor
@@ -172,8 +172,11 @@ def index():
 @app.route("/timeline")
 @with_github
 async def timeline(gh: GitHubAPI):
-    # commits = list(itertools.islice(repository.commit_sequence(), config.MAX_COMMITS))
-    commits = db.session.execute(db.select(model.Commit)).scalars().all()
+    commits = (
+        db.session.execute(db.select(model.Commit).order_by(model.Commit.order.desc()))
+        .scalars()
+        .all()
+    )
     return render_template(
         "timeline.html",
         commits=commits,
@@ -184,24 +187,37 @@ async def timeline(gh: GitHubAPI):
 @app.route("/reload_commits", methods=["POST"])
 @with_github
 async def timeline_reload_commits(gh: GitHubAPI):
-    seq = list(repository.commit_sequence())
-    last_commit = seq[0] if len(seq) > 0 else None
-
     n_fetched = 0
 
-    # this is inefficient and manual, but we limit how many commits we consume so there's an upper limit
+    # get highest order of commit
+    latest_commit: model.Commit | None = db.session.execute(
+        db.select(model.Commit).order_by(model.Commit.order.desc()).limit(1)
+    ).scalar_one_or_none()
+    latest_order = latest_commit.order if latest_commit is not None else 0
+
+    fetched_commits: list[Commit] = []
+
     async for data in gh.getiter(f"/repos/{config.REPOSITORY}/commits"):
         if n_fetched >= config.MAX_COMMITS:
             break
 
         api_commit = Commit(**data)
 
+        if latest_commit is not None and api_commit.sha == latest_commit.sha:
+            break
+
+        n_fetched += 1
+        fetched_commits.append(api_commit)
+
+    for index, api_commit in enumerate(reversed(fetched_commits)):
         author = db.session.execute(
             db.select(model.GitHubUser).filter_by(id=api_commit.author.id)
         ).scalar_one_or_none()
 
         if author is None:
-            author = model.GitHubUser(id=api_commit.author.id, login=api_commit.author.login)
+            author = model.GitHubUser(
+                id=api_commit.author.id, login=api_commit.author.login
+            )
             db.session.add(author)
 
         committer = db.session.execute(
@@ -209,51 +225,30 @@ async def timeline_reload_commits(gh: GitHubAPI):
         ).scalar_one_or_none()
 
         if committer is None:
-            committer = model.GitHubUser(id=api_commit.committer.id, login=api_commit.committer.login)
+            committer = model.GitHubUser(
+                id=api_commit.committer.id, login=api_commit.committer.login
+            )
             db.session.add(committer)
-
-        existing_commit = db.session.execute(
-            db.select(model.Commit).filter_by(sha=api_commit.sha)
-        )
 
         commit = model.Commit.from_api(api_commit)
         commit.author = author
         commit.committer = committer
-        if existing_commit is None:
-            db.session.add(commit)
-        else:
-            db.session.merge(commit)
-
-        
-
-        n_fetched += 1
+        commit.order = latest_order + index + 1
+        db.session.merge(commit)
 
     db.session.commit()
-        # fetched_commits[commit.sha] = commit
-        # fetched_commits_seq.append(commit.sha)
-
-    # for existing in db.session.execute(db.select(model.Commit).filter(model.Commit.sha.in_([c.sha for c in fetched_commits.values()]))):
-    #     commit: Commit = fetched_commits.pop(existing.sha)
-    #     db_commit = model.Commit(sha=commit.sha, url=commit.url)
-    #     db.session.merge()
-
-    #     commit = ExtendedCommit(**data)
-
-    #     if last_commit is not None and commit.sha == last_commit.sha:
-    #         break
-
-
-    # for commit in fetched_commits:
-    #     repository.add_commit(commit, update_on_conflict=True)
-    # seq = fetched_commits + seq
-
-    # repository.save_commit_sequence((commit.sha for commit in seq))
 
     flash(f"Fetched {n_fetched} commits", "success")
 
+    commits = (
+        db.session.execute(db.select(model.Commit).order_by(model.Commit.order.desc()))
+        .scalars()
+        .all()
+    )
+
     return render_template(
         "commits.html",
-        commits=[],
+        commits=commits,
     )
 
 
@@ -270,26 +265,40 @@ async def timeline_reload_pipelines(gl: GitLabAPI):
     await gather_limit(15, *[pipeline.fetch(gl) for pipeline in pipelines])
 
     for pipeline in pipelines:
-        repository.add_pipeline(pipeline, update_on_conflict=True)
+        if "SOURCE_SHA" not in pipeline.variables:
+            # can't associate with commit
+            continue
 
-    #  for pipeline in pipelines:
-    #  print(pipeline.model_dump_json(indent=2))
+        if (
+            db.session.execute(
+                db.select(model.Commit).filter_by(sha=pipeline.variables["SOURCE_SHA"])
+            ).scalar_one_or_none()
+            is None
+        ):
+            # ignore these, we don't care about these commits
+            continue
 
-    pipeline_by_source_sha = {}
-    for pipeline in pipelines:
-        if "SOURCE_SHA" in pipeline.variables:
-            pipeline_by_source_sha[pipeline.variables["SOURCE_SHA"]] = pipeline
+        db_pipeline = db.session.merge(model.Pipeline.from_api(pipeline))
 
-    commits = repository.commit_sequence()
-    for commit in commits:
-        if commit.sha in pipeline_by_source_sha:
-            commit.pipelines.add(pipeline_by_source_sha[commit.sha].id)
-            repository.update_commit(commit)
+        db_pipeline.jobs = []
+
+        for job in pipeline.jobs:
+            db_job = model.Job.from_api(job)
+            db_job.pipeline_id = db_pipeline.id
+            db.session.merge(db_job)
+
+    db.session.commit()
+
+    commits = (
+        db.session.execute(db.select(model.Commit).order_by(model.Commit.order.desc()))
+        .scalars()
+        .all()
+    )
 
     flash(f"Fetched {len(pipelines)} pipelines", "success")
     return render_template(
         "commits.html",
-        commits=itertools.islice(repository.commit_sequence(), config.MAX_COMMITS),
+        commits=commits,
     )
 
 
@@ -297,50 +306,69 @@ async def timeline_reload_pipelines(gl: GitLabAPI):
 @require_login
 @with_gitlab
 async def reload_pipeline(gl: GitLabAPI, pipeline_id):
-    pipeline = repository.get_pipeline(pipeline_id)
+    pipeline = db.get_or_404(model.Pipeline, pipeline_id)
 
-    pipeline = Pipeline(
+    api_pipeline = Pipeline(
         **await gl.getitem(
             f"/projects/{config.GITLAB_PROJECT_ID}/pipelines/{pipeline.id}"
         )
     )
-    await pipeline.fetch(gl)
+    await api_pipeline.fetch(gl)
 
-    repository.update_pipeline(pipeline)
+    pipeline = db.session.merge(model.Pipeline.from_api(api_pipeline))
+
+    pipeline.jobs = []
+
+    for job in api_pipeline.jobs:
+        db_job = model.Job.from_api(job)
+        db_job.pipeline_id = pipeline.id
+        db.session.merge(db_job)
+
+    db.session.commit()
 
     return render_template("pipeline.html", pipeline=pipeline, expanded=True)
 
 
 @app.route("/toggle_revert/<sha>", methods=["POST"])
 def toggle_revert(sha):
+    commit = db.get_or_404(model.Commit, sha)
+    commit.revert = not commit.revert
+    db.session.commit()
+
     return f"""
 <input
    type="checkbox"
    hx-post="{ url_for('toggle_revert', sha=sha) }"
-   { 'checked' if repository.toggle_revert(sha) else ''}
+   { 'checked' if commit.revert else ''}
 >
 """
 
 
 @app.route("/reset_reverts", methods=["POST"])
 def reset_reverts():
-    repository.reset_reverts()
+    db.session.execute(sqlalchemy.update(model.Commit).values(revert=False))
+    db.session.commit()
+    commits = (
+        db.session.execute(db.select(model.Commit).order_by(model.Commit.order.desc()))
+        .scalars()
+        .all()
+    )
     return render_template(
         "commits.html",
-        commits=itertools.islice(repository.commit_sequence(), config.MAX_COMMITS),
+        commits=commits,
     )
 
 
 @app.route("/commit/<sha>")
 def commit_detail(sha):
-    commit = repository.get_commit(sha)
+    commit = db.get_or_404(model.Commit, sha)
 
     return render_template("commit_detail.html", commit=commit)
 
 
 @app.route("/commit/<sha>/patches", methods=["GET", "POST"])
 def commit_patches(sha):
-    commit = repository.get_commit(sha)
+    commit = db.get_or_404(model.Commit, sha)
 
     if request.method == "GET":
         return render_template(
@@ -358,21 +386,34 @@ def commit_patches(sha):
                 patch=Patch(id=None, url=url),
                 error=True,
             )
-        patch = Patch(url=url)
-        commit.patches.append(patch)
-        repository.update_commit(commit)
+        max_order = (
+            (max([p.order for p in commit.patches]) + 1)
+            if len(commit.patches) > 0
+            else 0
+        )
+        patch = model.Patch(url=url, commit_sha=commit.sha, order=max_order)
+        db.session.add(patch)
+        db.session.commit()
 
-        return render_template(
-            "patch_form.html", commit=commit, patch=patch
-        ) + render_template(
-            "patch_form.html", commit=commit, patch=Patch(id=None, url="")
+        return (
+            render_template(
+                "commit_patches.html",
+                commit=commit,
+                create_patch=Patch(id=None, url=""),
+            ),
+            200,
+            {"HX-Retarget": "body"},
         )
 
 
 @app.route("/commit/<sha>/patch/<patch>/move", methods=["PUT"])
 def commit_patch_move(sha, patch):
-    commit = repository.get_commit(sha)
-    idx = [p.id for p in commit.patches].index(UUID(patch))
+    commit = db.get_or_404(model.Commit, sha)
+    patch = db.get_or_404(model.Patch, patch)
+    patches = commit.patches
+    #  patches = [copy.deepcopy(p) for p in commit.patches]
+    patches.sort(key=lambda p: p.order)
+    idx = [p.id for p in patches].index(patch.id)
 
     direction = request.args["dir"]
 
@@ -381,15 +422,25 @@ def commit_patch_move(sha, patch):
     ):
         return "no", 400
 
+    print([(p.url, p.order) for p in patches])
+
     if direction == "up":
-        a, b = commit.patches[idx], commit.patches[idx - 1]
-        commit.patches[idx] = b
-        commit.patches[idx - 1] = a
+        a, b = patches[idx - 1], patches[idx]
+        patches[idx - 1] = b
+        patches[idx] = a
+
     elif direction == "down":
-        a, b = commit.patches[idx], commit.patches[idx + 1]
-        commit.patches[idx] = b
-        commit.patches[idx + 1] = a
-    repository.update_commit(commit)
+        a, b = patches[idx], patches[idx + 1]
+        patches[idx] = b
+        patches[idx + 1] = a
+
+    for i, p in enumerate(patches):
+        p.order = i
+
+    commit.patches = []
+    commit.patches = patches
+
+    db.session.commit()
     return render_template(
         "commit_patches.html",
         commit=commit,
@@ -399,29 +450,30 @@ def commit_patch_move(sha, patch):
 
 @app.route("/commit/<sha>/patch/<patch>", methods=["PUT", "DELETE"])
 def commit_patch(sha, patch):
-    commit = repository.get_commit(sha)
+    commit = db.get_or_404(model.Commit, sha)
+    patch = db.get_or_404(model.Patch, patch)
 
     if request.method == "PUT":
         url = request.form.get("url", "").strip()
         valid = len(url) > 0
-        idx = [p.id for p in commit.patches].index(UUID(patch))
-        commit.patches[idx].url = url
-        patch = commit.patches[idx]
+        #  idx = [p.id for p in commit.patches].index(UUID(patch))
+        #  commit.patches[idx].url = url
+        #  patch = commit.patches[idx]
         if valid:
-            repository.update_commit(commit)
+            patch.url = url
+            db.session.commit()
+            #  repository.update_commit(commit)
         return render_template(
             "patch_form.html", commit=commit, patch=patch, error=not valid, saved=valid
         )
     if request.method == "DELETE":
-        idx = [p.id for p in commit.patches].index(UUID(patch))
-        del commit.patches[idx]
-        repository.update_commit(commit)
+        db.session.delete(patch)
+        db.session.commit()
         return ""
 
 
 @app.route("/commit/<sha>/note")
 def commit_note(sha):
-
     commit = db.get_or_404(model.Commit, sha)
 
     return render_template("commit_note.html", commit=commit)

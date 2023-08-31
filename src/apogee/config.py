@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 
-MAX_COMMITS = 50
+MAX_COMMITS = 100
 REPOSITORY = "acts-project/acts"
 
 DB_PATH = Path.cwd() / "shelve"

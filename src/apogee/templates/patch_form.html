@@ -4,8 +4,8 @@ new-patch
 patch-{{ patch.id }}
 {%- endif -%}">
 <form
-  hx-target="closest .patch-form"
   hx-swap="outerHTML"
+  hx-target="closest .patch-form"
 {% if patch.id is none -%}
   hx-post="{{ url_for('commit_patches', sha=commit.sha) }}"
 {%- else -%}
@@ -47,7 +47,8 @@ patch-{{ patch.id }}
           </span>
         </button>
 
-        <button class="button is-danger is-outlined" hx-delete="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}">
+        <button class="button is-danger is-outlined" 
+          hx-delete="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}">
           <span class="icon">
             <ion-icon name="close-outline"></ion-icon>
           </span>

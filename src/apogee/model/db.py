@@ -2,13 +2,23 @@ import datetime
 from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, String, Integer, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship 
+from sqlalchemy import Column, String, Integer, ForeignKey, JSON, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apogee.model.github import Commit as ApiCommit
+from apogee.model.gitlab import Pipeline as ApiPipeline, Job as ApiJob
 
 
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 
 class Commit(db.Model):
     sha: Mapped[str] = mapped_column(String(length=40), primary_key=True)
@@ -29,12 +39,19 @@ class Commit(db.Model):
 
     note: Mapped[str] = mapped_column(default="")
 
+    revert: Mapped[bool] = mapped_column(default=False)
+
+    order: Mapped[int] = mapped_column()
+
+    pipelines: Mapped[list["Pipeline"]] = relationship(back_populates="commit")
+
+    patches: Mapped[list["Patch"]] = relationship(cascade="all, delete-orphan")
 
     @classmethod
     def from_api(cls, commit: ApiCommit) -> "Commit":
         return cls(
             sha=commit.sha,
-            url = commit.url,
+            url=commit.url,
             html_url=commit.html_url,
             message=commit.commit.message,
             committed_date=commit.commit.committer.date,
@@ -42,8 +59,94 @@ class Commit(db.Model):
         )
 
 
+class Patch(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    url: Mapped[str] = mapped_column()
+
+    commit_sha: Mapped[str] = mapped_column(ForeignKey("commit.sha"))
+    commit: Mapped["Commit"] = relationship(
+        foreign_keys=[commit_sha], back_populates="patches"
+    )
+
+    order: Mapped[int] = mapped_column(nullable=False)
+
+
 class GitHubUser(db.Model):
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     login: Mapped[str] = mapped_column(unique=True)
+
+
+class Pipeline(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    iid: Mapped[int] = mapped_column(unique=True)
+    project_id: Mapped[int] = mapped_column()
+    sha: Mapped[str] = mapped_column()  # infra sha
+    source_sha: Mapped[str] = mapped_column(ForeignKey("commit.sha"))
+    commit: Mapped["Commit"] = relationship(
+        foreign_keys=[source_sha], back_populates="pipelines"
+    )
+    ref: Mapped[str] = mapped_column()
+    status: Mapped[str] = mapped_column()
+    source: Mapped[str] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column()
+    updated_at: Mapped[datetime.datetime] = mapped_column()
+    web_url: Mapped[str] = mapped_column()
+
+    jobs: Mapped[list["Job"]] = relationship(
+        back_populates="pipeline", cascade="all, delete-orphan"
+    )
+
+    variables: Mapped[dict[str, str]] = mapped_column(JSON)
+
+    @classmethod
+    def from_api(cls, pipeline: ApiPipeline) -> "Pipeline":
+        return cls(
+            id=pipeline.id,
+            iid=pipeline.iid,
+            project_id=pipeline.project_id,
+            sha=pipeline.sha,
+            source_sha=pipeline.variables["SOURCE_SHA"],
+            ref=pipeline.ref,
+            status=pipeline.status,
+            source=pipeline.source,
+            created_at=pipeline.created_at,
+            updated_at=pipeline.updated_at,
+            web_url=pipeline.web_url,
+            variables=pipeline.variables,
+        )
+
+
+class Job(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    status: Mapped[str] = mapped_column()
+    stage: Mapped[str] = mapped_column()
+    name: Mapped[str] = mapped_column()
+    ref: Mapped[str] = mapped_column()
+    allow_failure: Mapped[bool] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column()
+    started_at: Mapped[datetime.datetime | None] = mapped_column()
+    finished_at: Mapped[datetime.datetime | None] = mapped_column()
+    web_url: Mapped[str] = mapped_column()
+    failure_reason: Mapped[str | None] = mapped_column()
+
+    pipeline_id: Mapped[int] = mapped_column(ForeignKey("pipeline.id"))
+    pipeline: Mapped["Pipeline"] = relationship("Pipeline", back_populates="jobs")
+
+    @classmethod
+    def from_api(cls, job: ApiJob) -> "Job":
+        return cls(
+            id=job.id,
+            status=job.status,
+            stage=job.stage,
+            name=job.name,
+            ref=job.ref,
+            allow_failure=job.allow_failure,
+            created_at=job.created_at,
+            started_at=job.started_at,
+            finished_at=job.finished_at,
+            web_url=job.web_url,
+            failure_reason=job.failure_reason,
+        )
+
