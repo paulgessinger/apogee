@@ -29,22 +29,18 @@ import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
+import click
 
 from apogee.forms import PatchForm
 from apogee.model.gitlab import Pipeline
 from apogee.model.github import Commit
 from apogee.model.record import ExtendedCommit, Patch
-from apogee.repository import Repository
-from apogee.repository.shelve import ShelveRepository
 from apogee.model.db import db
 from apogee.model import db as model
 
 
 from apogee import config
 from apogee.util import gather_limit
-
-_repository_var = ContextVar("repository")
-repository: Repository = cast(Repository, LocalProxy(_repository_var))
 
 _is_htmx_var = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
@@ -62,24 +58,24 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 
-@app.cli.command()
-def export():
-    output = {}
-
-    repository = ShelveRepository(config.DB_PATH)
-    for commit in repository.commits().values():
-        if len(commit.patches) == 0 and (
-            not hasattr(commit, "notes") or commit.notes == ""
-        ):
-            continue
-        output[commit.sha] = {
-            "patches": [p.url for p in commit.patches],
-            "notes": commit.notes if hasattr(commit, "notes") else "",
-        }
-
+@app.cli.command("import")
+@click.argument("path")
+def _import(path):
     import json
 
-    print(json.dumps(output, indent=2))
+    with open(path) as f:
+        data = json.load(f)
+
+    for sha, commit in data.items():
+        c = db.session.execute(db.select(model.Commit).filter_by(sha=sha)).scalar_one()
+        if c is None:
+            print(f"Skipping {sha}")
+            continue
+        c.note = commit["notes"]
+
+        for i, patch in enumerate(commit["patches"]):
+            db.session.add(model.Patch(url=patch, commit=c, order=i))
+    db.session.commit()
 
 
 @app.context_processor
@@ -90,8 +86,6 @@ def inject_is_htmx():
 @app.context_processor
 def inject_contents():
     return {
-        "repository": repository,
-        "pipelines": repository.pipelines(),
         "humanize": humanize,
         "zip": zip,
         "user": g.user if "user" in g else None,
@@ -100,8 +94,6 @@ def inject_contents():
 
 @app.before_request
 def before_request():
-    repo = ShelveRepository(config.DB_PATH)
-    _repository_var.set(repo)
     if "HX-Request" in request.headers:
         _is_htmx_var.set(True)
 
@@ -200,7 +192,6 @@ async def timeline(gh: GitHubAPI):
     return render_template(
         "timeline.html",
         commits=commits,
-        pipelines=repository.pipelines(),
     )
 
 
@@ -482,7 +473,6 @@ def commit_patch(sha, patch):
         if valid:
             patch.url = url
             db.session.commit()
-            #  repository.update_commit(commit)
         return render_template(
             "patch_form.html", commit=commit, patch=patch, error=not valid, saved=valid
         )
@@ -520,19 +510,33 @@ def commit_note_edit(sha):
 @with_gitlab
 @with_session
 async def run_pipeline(gl: GitLabAPI, session: aiohttp.ClientSession, sha):
-    commit = repository.get_commit(sha)
+    trigger_commit = db.get_or_404(model.Commit, sha)
 
-    seq = list(repository.commit_sequence())
-    seq = seq[seq.index(commit) :]
+    commits = (
+        db.session.execute(
+            db.select(model.Commit)
+            .order_by(model.Commit.order.desc())
+            .where(model.Commit.order <= trigger_commit.order)
+        )
+        .scalars()
+        .all()
+    )
 
-    reverts = [c for c in seq if c.revert]
+    reverts = []
+    patches = []
+
+    for commit in commits:
+        #  print(commit.sha, commit.committed_date, commit.subject)
+        if commit.revert:
+            reverts.append(commit)
+        patches.extend(commit.patches)
+
     reverts.reverse()
-    patches = sum([c.patches for c in seq], [])
     patches.reverse()
 
     if request.method == "GET":
         return render_template(
-            "run_pipeline.html", commit=commit, reverts=reverts, patches=patches
+            "run_pipeline.html", commit=trigger_commit, reverts=reverts, patches=patches
         )
     elif request.method == "POST":
         url = f"{config.GITLAB_URL}/api/v4/projects/{config.GITLAB_PROJECT_ID}/trigger/pipeline"
@@ -562,17 +566,13 @@ async def run_pipeline(gl: GitLabAPI, session: aiohttp.ClientSession, sha):
 
         await pipeline.fetch(gl)
 
-        commit.pipelines.add(pipeline.id)
-        repository.update_commit(commit)
-        repository.add_pipeline(pipeline)
+        db_pipeline = model.Pipeline.from_api(pipeline)
+        db_pipeline.commit = trigger_commit
+        db.session.add(db_pipeline)
+        db.session.commit()
+
         flash(f"Pipeline started: #{pipeline.id}", "success")
         return "", 200, {"HX-Redirect": url_for("commit_detail", sha=sha)}
-        #  return redirect(url_for("commit_detail", sha=sha))
-        #  return (
-        #  render_template("commit_detail.html", commit=commit),
-        #  200,
-        #  {"HX-Push": url_for("commit_detail", sha=sha)},
-        #  )
 
 
 async def token_valid(token):
@@ -608,16 +608,3 @@ def authorized(oauth_token):
     web_session["gh_token"] = oauth_token
 
     return redirect(next_url)
-
-    #  if oauth_token is None:
-    #  flash("Authorization failed.")
-    #  return redirect(next_url)
-
-    #  user = User.query.filter_by(github_access_token=oauth_token).first()
-    #  if user is None:
-    #  user = User(oauth_token)
-    #  db_session.add(user)
-
-    #  user.github_access_token = oauth_token
-    #  db_session.commit()
-    #  return redirect(next_url)

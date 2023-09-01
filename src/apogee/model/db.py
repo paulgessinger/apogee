@@ -58,6 +58,10 @@ class Commit(db.Model):
             authored_date=commit.commit.author.date,
         )
 
+    @property
+    def subject(self) -> str:
+        return self.message.split("\n")[0]
+
 
 class Patch(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -149,4 +153,3 @@ class Job(db.Model):
             web_url=job.web_url,
             failure_reason=job.failure_reason,
         )
-

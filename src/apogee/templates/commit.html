@@ -48,14 +48,15 @@
 		{% include "commit_note.html" %}
 	</div>
 
+	{% set pipelines = commit.pipelines|sort(attribute="created_at", reverse=True) %}
 	{% if expanded %}
-		{% for pipeline in commit.pipelines %}
+		{% for pipeline in pipelines %}
 			{% with pipeline = pipeline, expanded = expanded and loop.first %}
 					{% include "pipeline.html" %}
 			{% endwith %}
 		{% endfor %}
 	{% else %}
-		{% with pipeline = commit.pipelines|first, expanded = False %}
+		{% with pipeline = pipelines|first, expanded = False %}
 				{% if pipeline is defined %}
 				{% include "pipeline.html" %}
 				{% endif %}
