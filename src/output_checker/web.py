@@ -50,6 +50,26 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 
+@app.cli.command()
+def export():
+    output = {}
+
+    repository = ShelveRepository(config.DB_PATH)
+    for commit in repository.commits().values():
+        if len(commit.patches) == 0 and (
+            not hasattr(commit, "notes") or commit.notes == ""
+        ):
+            continue
+        output[commit.sha] = {
+            "patches": [p.url for p in commit.patches],
+            "notes": commit.notes if hasattr(commit, "notes") else "",
+        }
+
+    import json
+
+    print(json.dumps(output, indent=2))
+
+
 @app.context_processor
 def inject_is_htmx():
     return dict(is_htmx=is_htmx)
