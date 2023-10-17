@@ -1,0 +1,121 @@
+{% extends "two_column.html" %}
+
+{% block hero %}
+
+<p class="title">
+	Pull Requests
+</p>
+<p class="subtitle">
+	Validation
+</p>
+
+{% endblock %}
+
+{% block side_column %}
+{% endblock %}
+
+{% block main_column %}
+<div class="field is-grouped">
+	  <p class="control">
+		<button class="button"
+					hx-post={{ url_for('reload_pipelines') }}
+					hx-target="#commits"
+					>
+						<span class="icon">
+							<ion-icon name="logo-gitlab"></ion-icon>
+						</span>
+							<span>
+					Reload pipelines
+						</span>
+		</button>
+		</p>
+	  <p class="control">
+		<button class="button is-danger is-outlined"
+					hx-post={{ url_for('reset_reverts') }}
+					hx-target="#commits"
+					hx-indicator="#commits"
+		 			hx-confirm="Reset all reverts?"
+					>
+					Reset reverts
+		</button>
+		</p>
+	  <p class="control">
+		<button class="button is-danger is-outlined"
+					hx-post={{ url_for('reset_patches') }}
+					hx-target="#commits"
+					hx-indicator="#commits"
+		 			hx-confirm="Reset all patches?"
+					>
+					Reset patches
+		</button>
+		</p>
+</div>
+
+
+<hr/>
+<section id="pulls">
+	{% for pull in pulls|sort(attribute="updated_at", reverse=True) %}
+
+
+<div class="box">
+
+	<div class="columns">
+		<div class="column">
+			{% with pull = pull %}
+				{% include "pull_title.html" %}
+			{% endwith %}
+		</div>
+		<div class="column is-narrow">
+			<div class="field is-grouped">
+				{#
+				{% if commit.patches|length > 0 %}
+				<p class="control">
+					<a href="{{ url_for('commit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>
+				</p>
+				{% endif %}
+				#}
+				<p class="control">
+					<a class="button is-primary" 
+				    hx-boost="true"
+						href="{{ url_for('run_pipeline', pull=pull.number, back=request.url) }}">
+						Run pipeline</a>
+				</p>
+
+				{#
+				{% if request.endpoint != "commit_detail" %}
+				<p class="control">
+					<a class="button" hx-boost="true"
+				href="{{ url_for("commit_detail", sha=commit.sha) }}">
+						Details</a>
+				</p>
+				{% endif %}
+				#}
+			</div>
+		</div>
+	</div>
+
+	{% set pipelines = pull.commit.pipelines|sort(attribute="created_at", reverse=True) %}
+	{% if expanded %}
+		{% for pipeline in pipelines %}
+			{% with pipeline = pipeline, expanded = expanded and loop.first %}
+					{% include "pipeline.html" %}
+			{% endwith %}
+			{% else %}
+			No pipelines
+		{% endfor %}
+	{% else %}
+		{% with pipeline = pipelines|first, expanded = False %}
+				{% if pipeline is defined %}
+				{% include "pipeline.html" %}
+				{% else %}
+				No pipelines
+				{% endif %}
+		{% endwith %}
+	{% endif %}
+
+
+</div>
+	{% endfor %}
+</section>
+{% endblock %}
+

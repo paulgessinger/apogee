@@ -54,10 +54,12 @@
     <div class="navbar-end">
       <div class="navbar-item has-dropdown is-hoverable">
         <a class="navbar-link" href="{{ user.html_url }}">
-          <figure class="image is-28x28 mr-2">
-            <img class="is-rounded" src="{{ user.avatar_url }}">
+          <figure class="image is-24x24 mr-2">
+            <img class="is-rounded" src="{{ user.avatar_url }}"/>
           </figure>
+          <span>
           {{ user.login }}
+          </span>
         </a>
         <div class="navbar-dropdown is-boxed">
           <a class="navbar-item" hx-post="{{ url_for('logout') }}">
@@ -81,16 +83,20 @@
 				{% block side_column %}{% endblock %}
 
         <aside class="menu" hx-boost="true">
+          {% block side_column_menu %}{% endblock %}
+
           <p class="menu-label">
             General
           </p>
           <ul class="menu-list">
             <li><a
-                class="{{ 'is-active' if request.endpoint == 'timeline' else '' }}"
-                href="{{ url_for("timeline") }}">Timeline</a></li>
+                class="{{ 'is-active' if request.endpoint == 'timeline.index' else '' }}"
+                href="{{ url_for("timeline.index") }}">Timeline</a></li>
+            <li><a
+                class="{{ 'is-active' if request.endpoint == 'pulls.index' else '' }}"
+                href="{{ url_for("pulls.index") }}">Pull Requests</a></li>
           </ul>
 
-          {% block side_column_menu %}{% endblock %}
         </aside>
       </div>
     </div>

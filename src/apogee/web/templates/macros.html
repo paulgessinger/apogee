@@ -1,0 +1,5 @@
+{% macro github_user(user) -%}
+	<a href="{{ user.html_url }}" class="">
+		<img class="avatar" src="{{ user.avatar_url }}" />
+		<span>@{{ user.login }}</span></a>
+{%- endmacro %}

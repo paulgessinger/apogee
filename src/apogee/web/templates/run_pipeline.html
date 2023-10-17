@@ -2,6 +2,14 @@
 
 {% block main_column %}
 <h1 class="title">Trigger pipeline for</h1>
+{% if pr is not none %}
+<div class="box">
+{% with pull = pr %}
+{% include "pull_title.html" %}
+{% endwith %}
+</div>
+<hr/>
+{% endif %}
 <div class="box">
 {% include "commit_title.html" %}
 </div>

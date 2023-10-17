@@ -3,14 +3,15 @@ import re
 
 from pydantic import BaseModel
 
-from apogee.model import CommitHash
+from apogee.model import CommitHash, URL
 
 
 class User(BaseModel):
     login: str
     id: int
     url: str
-    html_url: str
+    html_url: URL
+    avatar_url: URL
 
 
 class CommitAuthor(BaseModel):
@@ -22,16 +23,16 @@ class CommitAuthor(BaseModel):
 class Commit(BaseModel):
     class Commit(BaseModel):
         message: str
-        url: str
+        url: URL
         author: CommitAuthor
         committer: CommitAuthor
 
     sha: CommitHash
-    url: str
-    html_url: str
+    url: URL
+    html_url: URL
 
-    author: User
-    committer: User
+    author: User | None
+    committer: User | None
 
     commit: Commit
 
@@ -44,9 +45,43 @@ class Commit(BaseModel):
             return int(m.group(1))
 
 
-class User(BaseModel):
-    login: str
+class PRRef(BaseModel):
+    label: str
+    ref: str
+    sha: CommitHash
+    user: User
+    repo: str
+
+
+class Repository(BaseModel):
     id: int
-    url: str
-    html_url: str
-    avatar_url: str
+    name: str
+    full_name: str
+    owner: User
+    url: URL
+    html_url: URL
+    clone_url: URL
+
+
+class PullRequest(BaseModel):
+    class Source(BaseModel):
+        label: str
+        ref: str
+        sha: CommitHash
+        user: User
+        repo: Repository
+
+    url: URL
+    html_url: URL
+    user: User
+    number: int
+    state: str
+    title: str
+    body: str | None
+    created_at: datetime
+    updated_at: datetime
+    closed_at: datetime | None
+    merged_at: datetime | None
+    merge_commit_sha: CommitHash | None
+    head: Source
+    base: Source

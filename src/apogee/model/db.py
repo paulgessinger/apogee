@@ -2,15 +2,25 @@ import datetime
 from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, String, Integer, ForeignKey, JSON, event
+from sqlalchemy import Column, MetaData, String, Integer, ForeignKey, JSON, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from apogee.model.github import Commit as ApiCommit
+from apogee.model.github import Commit as ApiCommit, User as ApiUser
 from apogee.model.gitlab import Pipeline as ApiPipeline, Job as ApiJob
 
 
-db = SQLAlchemy()
+db = SQLAlchemy(
+    metadata=MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_%(constraint_name)s",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
+)
 
 
 @event.listens_for(Engine, "connect")
@@ -26,11 +36,14 @@ class Commit(db.Model):
     url: Mapped[str] = mapped_column()
     html_url: Mapped[str] = mapped_column()
 
-    author_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("user.id"))
     author: Mapped["GitHubUser"] = relationship(foreign_keys=[author_id])
 
     committer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("user.id"))
     comitter: Mapped["GitHubUser"] = relationship(foreign_keys=[committer_id])
+
+    commit_author: Mapped[str] = mapped_column()
+    commit_committer: Mapped[str] = mapped_column()
 
     message: Mapped[str] = mapped_column()
 
@@ -54,6 +67,8 @@ class Commit(db.Model):
             url=commit.url,
             html_url=commit.html_url,
             message=commit.commit.message,
+            commit_author=commit.commit.author.name,
+            commit_committer=commit.commit.committer.name,
             committed_date=commit.commit.committer.date,
             authored_date=commit.commit.author.date,
         )
@@ -80,6 +95,34 @@ class GitHubUser(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     login: Mapped[str] = mapped_column(unique=True)
+    url: Mapped[str] = mapped_column()
+    html_url: Mapped[str] = mapped_column()
+    avatar_url: Mapped[str] = mapped_column()
+
+    @classmethod
+    def from_api(cls, user: ApiUser) -> "GitHubUser":
+        return cls(
+            id=user.id,
+            login=user.login,
+            url=user.url,
+            html_url=user.html_url,
+            avatar_url=user.avatar_url,
+        )
+
+
+class PullRequest(db.Model):
+    number: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column()
+    html_url: Mapped[str] = mapped_column()
+    state: Mapped[str] = mapped_column()
+    title: Mapped[str] = mapped_column()
+    body: Mapped[str] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column()
+    updated_at: Mapped[datetime.datetime] = mapped_column()
+    closed_at: Mapped[Optional[datetime.datetime]] = mapped_column()
+    merged_at: Mapped[Optional[datetime.datetime]] = mapped_column()
+    merge_commit_sha: Mapped[Optional[str]] = mapped_column()
+    head_sha: Mapped[str] = mapped_column()
 
 
 class Pipeline(db.Model):

@@ -1,0 +1,16 @@
+{% from "macros.html" import github_user %}
+<p class="title is-6">
+						<span class="icon-text">
+							<span class="icon">
+							<ion-icon name="git-pull-request-outline"></ion-icon>
+							</span>
+							<span>
+								{{ pull.title }} (<a href="{{ pull.html_url }}">#{{ pull.number }}</a>)
+							</span>
+						</span>
+</p>
+<p class="subtitle is-6">
+	<span class="ml-1">{{ github_user(pull.user) }}</span>,
+	created {{ pull.created_at|datefmt }}, updated {{ pull.updated_at|datefmt }}<br>
+	<a href="{{ pull.head.repo.html_url }}/commit/{{ pull.head.sha }}"><code>{{ pull.head.label }}</code></a>
+</p>

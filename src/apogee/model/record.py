@@ -20,19 +20,3 @@ IdType = UUID | CommitHash
 class Patch(BaseModel):
     id: UUID | None = Field(default_factory=uuid4)
     url: str
-
-
-class ExtendedCommit(Commit):
-    pipelines: set[int] = Field(default_factory=set)
-
-    revert: bool = False
-
-    patches: list[Patch] = Field(default_factory=list)
-
-    notes: str = ""
-
-    def sorted_pipelines(
-        self, all_pipelines: Dict[int, Pipeline]
-    ) -> Iterable[Pipeline]:
-        pipelines = (all_pipelines[pipeline_id] for pipeline_id in self.pipelines)
-        return sorted(pipelines, key=lambda p: p.created_at, reverse=True)

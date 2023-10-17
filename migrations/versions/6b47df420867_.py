@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 492d08571cd8
+Revision ID: 6b47df420867
 Revises: 
-Create Date: 2023-08-31 11:35:28.992760
+Create Date: 2023-10-16 18:34:41.192811
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '492d08571cd8'
+revision = '6b47df420867'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,32 +21,37 @@ def upgrade():
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('login', sa.String(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('login')
+    sa.Column('url', sa.String(), nullable=False),
+    sa.Column('html_url', sa.String(), nullable=False),
+    sa.Column('avatar_url', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_user')),
+    sa.UniqueConstraint('login', name=op.f('uq_user_login'))
     )
     op.create_table('commit',
     sa.Column('sha', sa.String(length=40), nullable=False),
     sa.Column('url', sa.String(), nullable=False),
     sa.Column('html_url', sa.String(), nullable=False),
-    sa.Column('author_id', sa.Integer(), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=True),
     sa.Column('committer_id', sa.Integer(), nullable=True),
+    sa.Column('commit_author', sa.String(), nullable=False),
+    sa.Column('commit_committer', sa.String(), nullable=False),
     sa.Column('message', sa.String(), nullable=False),
     sa.Column('committed_date', sa.DateTime(), nullable=False),
     sa.Column('authored_date', sa.DateTime(), nullable=False),
     sa.Column('note', sa.String(), nullable=False),
     sa.Column('revert', sa.Boolean(), nullable=False),
     sa.Column('order', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['author_id'], ['user.id'], ),
-    sa.ForeignKeyConstraint(['committer_id'], ['user.id'], ),
-    sa.PrimaryKeyConstraint('sha')
+    sa.ForeignKeyConstraint(['author_id'], ['user.id'], name=op.f('fk_commit_author_id_user')),
+    sa.ForeignKeyConstraint(['committer_id'], ['user.id'], name=op.f('fk_commit_committer_id_user')),
+    sa.PrimaryKeyConstraint('sha', name=op.f('pk_commit'))
     )
     op.create_table('patch',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('url', sa.String(), nullable=False),
     sa.Column('commit_sha', sa.String(length=40), nullable=False),
     sa.Column('order', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['commit_sha'], ['commit.sha'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['commit_sha'], ['commit.sha'], name=op.f('fk_patch_commit_sha_commit')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_patch'))
     )
     op.create_table('pipeline',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -61,9 +66,9 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('web_url', sa.String(), nullable=False),
     sa.Column('variables', sa.JSON(), nullable=False),
-    sa.ForeignKeyConstraint(['source_sha'], ['commit.sha'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('iid')
+    sa.ForeignKeyConstraint(['source_sha'], ['commit.sha'], name=op.f('fk_pipeline_source_sha_commit')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_pipeline')),
+    sa.UniqueConstraint('iid', name=op.f('uq_pipeline_iid'))
     )
     op.create_table('job',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -78,8 +83,8 @@ def upgrade():
     sa.Column('web_url', sa.String(), nullable=False),
     sa.Column('failure_reason', sa.String(), nullable=True),
     sa.Column('pipeline_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['pipeline_id'], ['pipeline.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['pipeline_id'], ['pipeline.id'], name=op.f('fk_job_pipeline_id_pipeline')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_job'))
     )
     # ### end Alembic commands ###
 

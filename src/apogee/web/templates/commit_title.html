@@ -1,0 +1,17 @@
+{% from "macros.html" import github_user %}
+{% set subject = commit.message.split("\n")[0]|trim %}
+
+<p class="title is-6">
+	{{ subject|pr_links|safe }}
+</p>
+<p class="subtitle is-6">
+	{% if commit.author is not none %}
+	<span class="ml-1">
+		{{ github_user(commit.author) }}
+	</span>
+	{% else %}
+	<span>{{ commit.commit_author }}</span>
+	{%- endif %},
+	{{ commit.committed_date|datefmt }}
+<a href="{{ commit.html_url }}" x-tooltip.raw="{{ commit.sha }}"><code>{{ commit.sha[:9] }}</code></a>
+</p>
