@@ -1,10 +1,20 @@
 import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, MetaData, String, Integer, ForeignKey, JSON, event, null
+from sqlalchemy import (
+    Column,
+    MetaData,
+    String,
+    Integer,
+    ForeignKey,
+    JSON,
+    event,
+    null,
+    select,
+)
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
 
 from apogee.model.github import (
     Commit as ApiCommit,
@@ -81,6 +91,22 @@ class Commit(db.Model):
     def subject(self) -> str:
         return self.message.split("\n")[0]
 
+    @property
+    def latest_pipeline(self) -> Optional["Pipeline"]:
+        session = Session.object_session(self)
+        assert session is not None
+        # @TODO: Inefficient
+        return (
+            session.execute(
+                select(Pipeline)
+                .filter_by(source_sha=self.sha)
+                .order_by(Pipeline.created_at.desc())
+                .limit(1)
+            )
+            .scalars()
+            .one_or_none()
+        )
+
 
 class Patch(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -150,6 +176,8 @@ class PullRequest(db.Model):
 
     commits: Mapped[list["PrCommitAssociation"]] = relationship()
 
+    mergeable: Mapped[bool] = mapped_column(server_default="t")
+
     @classmethod
     def from_api(cls, pull: ApiPullRequest) -> "PullRequest":
         return cls(
@@ -169,6 +197,7 @@ class PullRequest(db.Model):
             base_repo_full_name=pull.base.repo.full_name,
             base_repo_html_url=pull.base.repo.html_url,
             base_repo_clone_url=pull.base.repo.clone_url,
+            mergeable=pull.mergeable,
         )
 
 
@@ -204,6 +233,12 @@ class Pipeline(db.Model):
     )
 
     variables: Mapped[dict[str, str]] = mapped_column(JSON)
+
+    refreshed_at: Mapped[datetime.datetime] = mapped_column()
+
+    @property
+    def refreshed_delta(self):
+        return datetime.datetime.now() - self.refreshed_at
 
     @classmethod
     def from_api(cls, pipeline: ApiPipeline) -> "Pipeline":
@@ -254,3 +289,8 @@ class Job(db.Model):
             web_url=job.web_url,
             failure_reason=job.failure_reason,
         )
+
+
+class KeyValue(db.Model):
+    key: Mapped[str] = mapped_column(primary_key=True)
+    value: Mapped[Any] = mapped_column(JSON)

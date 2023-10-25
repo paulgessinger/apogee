@@ -85,3 +85,5 @@ class PullRequest(BaseModel):
     merge_commit_sha: CommitHash | None
     head: Source
     base: Source
+
+    mergeable: bool

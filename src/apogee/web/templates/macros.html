@@ -3,3 +3,19 @@
 		<img class="avatar" src="{{ user.avatar_url }}" />
 		<span>@{{ user.login }}</span></a>
 {%- endmacro %}
+
+{% macro status_to_class(status) -%}
+		{% if status == 'success' -%}
+		is-success
+		{% elif status == 'failed' -%}
+		is-danger
+		{% elif status == 'running' -%}
+		is-info
+		{% elif status == 'skipped' -%}
+		is-danger is-light
+		{% elif status == 'created' -%}
+		is-info is-light
+		{% elif status == 'pending' -%}
+		is-info is-light
+		{%- endif -%}
+{%- endmacro %}

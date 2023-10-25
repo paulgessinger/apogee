@@ -1,0 +1,90 @@
+<div id="run_pipeline">
+
+<h1 class="title">Trigger pipeline for</h1>
+{% if pr is not none %}
+<div class="box">
+{% with pull = pr %}
+{% include "pull_title.html" %}
+{% endwith %}
+</div>
+<hr/>
+{% endif %}
+<div class="box">
+{% include "commit_title.html" %}
+</div>
+
+<hr/>
+
+<div class="block">
+<h2 class="title is-4">Reverting:</h2>
+
+{% for commit in reverts %}
+<div class="box">
+	{% with commit = commit %}
+		{% include "commit_title.html" %}
+	{% endwith %}
+</div>
+{% else %}
+Nothing!
+{% endfor %}
+</div>
+
+<hr/>
+
+<div class="block">
+<h2 class="title is-4">Patches:</h2>
+
+<div class="content">
+<ol>
+{% for patch in patches %}
+<li><a href="{{ patch.url }}">{{ patch.url }}</a></li>
+{% else %}
+No patches!
+{% endfor %}
+</ol>
+</div>
+</div>
+
+{% if pr is not none %}
+<hr/>
+Pipeline will be triggered on <a href="{{ pr.head_repo_html_url }}"><code>{{ pr.head_repo_full_name }}</code></a> at <code>{{ pr.head_ref }}</code>.
+{% endif %}
+
+<hr/>
+
+{% with variables = variables %}
+{% include "variable_table.html" %}
+{% endwith %}
+
+<hr/>
+
+<div class="field is-grouped is-grouped-centered">
+	<p class="control">
+		<label class="checkbox mt-2">
+			<input type="checkbox"
+				hx-get="{{ url_for('run_pipeline', 
+													 sha=commit.sha if pr is none else none, 
+													 pull=pr.number if pr is not none else none, 
+		                       do_report="0" if do_report else "1", 
+												   back=request.args["back"]) }}"
+				hx-swap="outerHTML"
+				hx-target="#run_pipeline"
+				hx-push-url="true"
+				{% if do_report %}checked{% endif %}> Post report to PR
+		</label>
+	</p>
+	<p class="control">
+		<button class="button is-primary" hx-post={{ request.url }}>
+			Launch
+		</button>
+	</p>
+	{% if "back" in request.args %}
+	<p class="control">
+		<a class="button is-light" href={{ request.args["back"] }}>
+			Cancel
+		</a>
+	</p>
+	{% endif %}
+</div>
+
+</div>

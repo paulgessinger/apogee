@@ -1,19 +1,9 @@
+{% from "macros.html" import status_to_class %}
 <div id="pipeline-{{ pipeline.id }}" class="box" x-data="{ expanded: {{ 'true' if expanded else 'false' }} }">
 		<div class="columns">
 			<div class="column">
 				<p class="title is-7">
-					<span class="tag {% if pipeline.status == 'success' -%}
-					is-success
-					{% elif pipeline.status == 'failed' -%}
-					is-danger
-					{% elif pipeline.status == 'running' -%}
-					is-info
-					{% elif pipeline.status == 'skipped' -%}
-					is-warning
-					{% elif pipeline.status == 'pending' -%}
-					is-light
-					{%- endif -%}
-					">
+					<span class="tag {{ status_to_class(pipeline.status) }}">
 
 						<a 
 							x-tooltip.raw="{{ pipeline.status|upper }}"
@@ -27,13 +17,13 @@
 						x-timeago="date"
 						x-tooltip.raw="{{ pipeline.created_at|datefmt }}">
 					</span>
-					{%- if pipeline.last_refreshed_at -%}
+					{%- if pipeline.refreshed_at -%}
 					, last updated
 					<span 
-						x-data="{ date: new Date('{{pipeline.last_refreshed_at.isoformat()}}')  }" 
+						x-data="{ date: new Date('{{pipeline.refreshed_at.isoformat()}}')  }" 
 						x-timeago="date"
-						x-tooltip.raw="{{ pipeline.last_refreshed_at|datefmt }}">
-						{{ humanize.naturaltime(pipeline.last_refreshed_delta) }}
+						x-tooltip.raw="{{ pipeline.refreshed_at|datefmt }}">
+						{{ humanize.naturaltime(pipeline.refreshed_delta) }}
 					</span>
 					{% endif %}
 				</p>
@@ -78,18 +68,7 @@
 
 			<span class="tags">
 				{% for job in jobs|sort(attribute="name") %}
-				<span class="tag {% if job.status == 'success' -%}
-				is-success
-				{% elif job.status == 'failed' -%}
-				is-danger
-				{% elif job.status == 'running' -%}
-				is-info
-				{% elif job.status == 'skipped' -%}
-				is-warning
-				{% elif job.status == 'pending' -%}
-				is-light
-				{%- endif -%}
-				"
+				<span class="tag {{ status_to_class(job.status) }}"
 				x-tooltip.raw="{{ job.status|upper }}">
 					<a href="{{ job.web_url }}">{{ job.name }}</a>
 				</span>

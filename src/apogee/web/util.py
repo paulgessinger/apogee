@@ -1,3 +1,4 @@
+from datetime import datetime
 import functools
 import aiohttp
 
@@ -6,6 +7,7 @@ from gidgethub.aiohttp import GitHubAPI
 from gidgetlab.aiohttp import GitLabAPI
 
 from apogee import config
+from apogee.model.db import KeyValue, db
 
 
 def with_session(fn):
@@ -60,3 +62,18 @@ def with_gitlab(fn):
         return await fn(*args, **kwargs)
 
     return wrapped
+
+
+def get_last_pipeline_refresh() -> datetime | None:
+    obj = db.session.execute(
+        db.select(KeyValue).where(KeyValue.key == "last_pipeline_refresh")
+    ).scalar_one_or_none()
+    if obj is None:
+        return None
+    return datetime.fromisoformat(obj.value)
+
+
+def set_last_pipeline_refresh(to: datetime):
+    obj = KeyValue(key="last_pipeline_refresh", value=to.isoformat())
+    db.session.merge(obj)
+    db.session.commit()

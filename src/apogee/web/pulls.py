@@ -100,13 +100,13 @@ async def reload_pulls(gh: GitHubAPI):
 
             db_pr.commits.append(assoc)
 
+    flash(f"{len(updated)} pull requests updated", "success")
+
     db.session.commit()
 
     open_pulls = db.session.execute(
         db.select(model.PullRequest).filter_by(state="open")
     ).scalars()
-
-    flash("Pull requests updated", "success")
 
     return render_template(
         "pull_list.html",

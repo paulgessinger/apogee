@@ -1,15 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone, tzinfo
 import copy
 import functools
 import itertools
 import html
 from contextvars import ContextVar
 import re
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, cast
 from uuid import UUID
 import flask
 from flask import (
     abort,
+    current_app,
     flash,
     g,
     render_template,
@@ -39,7 +40,14 @@ from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
-from apogee.web.util import require_login, with_github, with_gitlab, with_session
+from apogee.web.util import (
+    get_last_pipeline_refresh,
+    require_login,
+    set_last_pipeline_refresh,
+    with_github,
+    with_gitlab,
+    with_session,
+)
 
 
 from apogee import config
@@ -134,6 +142,18 @@ def create_app():
     def render_markdown(s):
         return markdown.markdown(s)
 
+    @app.errorhandler(Exception)
+    def htmx_error_handler(e):
+        if is_htmx:
+            current_app.logger.error("Handling error", exc_info=e)
+            flash(str(e), "danger")
+            return (
+                render_template("notifications.html", swap=True),
+                200,
+                {"HX-Reswap": "none"},
+            )
+        raise e
+
     @app.route("/")
     def index():
         if hasattr(g, "user") and g.user is not None:
@@ -144,15 +164,52 @@ def create_app():
     @app.route("/reload_pipelines", methods=["POST"])
     @with_gitlab
     async def reload_pipelines(gl: GitLabAPI):
-        pipelines = []
-        async for pipeline in gl.getiter(
+        updated_after = datetime.now(tz=timezone.utc) - timedelta(
+            days=config.GITLAB_PIPELINES_WINDOW_DAYS
+        )
+        updated_after = max(updated_after, get_last_pipeline_refresh() or updated_after)
+
+        pipelines: List[Pipeline] = []
+
+        url = (
             f"/projects/{config.GITLAB_PROJECT_ID}/pipelines"
-        ):
-            if len(pipelines) >= config.GITLAB_PIPELINES_LIMIT:
-                break
+            + f"?updated_after={updated_after:%Y-%m-%dT%H:%M:%SZ}"
+        )
+        async for pipeline in gl.getiter(url):
             pipelines.append(Pipeline(**pipeline))
 
-        await gather_limit(15, *[pipeline.fetch(gl) for pipeline in pipelines])
+        # let's add pipelines that we currently have as running
+        updated_ids = {p.id for p in pipelines}
+
+        for pipeline in db.session.execute(
+            db.select(model.Pipeline).where(
+                model.Pipeline.status.not_in(
+                    ["success", "failed", "skipped", "canceled"]
+                )
+            )
+        ).scalars():
+            if pipeline.id in updated_ids:
+                continue
+            pipelines.append(
+                Pipeline(
+                    id=pipeline.id,
+                    iid=pipeline.iid,
+                    project_id=pipeline.project_id,
+                    sha=pipeline.sha,
+                    ref=pipeline.ref,
+                    status=pipeline.status,
+                    source=pipeline.source,
+                    created_at=pipeline.created_at,
+                    updated_at=pipeline.updated_at,
+                    web_url=pipeline.web_url,
+                    variables=pipeline.variables,
+                )
+            )
+
+        await gather_limit(
+            config.GITLAB_CONCURRENCY_LIMIT,
+            *[pipeline.fetch(gl) for pipeline in pipelines],
+        )
 
         for pipeline in pipelines:
             if "SOURCE_SHA" not in pipeline.variables:
@@ -170,7 +227,9 @@ def create_app():
                 # ignore these, we don't care about these commits
                 continue
 
-            db_pipeline = db.session.merge(model.Pipeline.from_api(pipeline))
+            db_pipeline = model.Pipeline.from_api(pipeline)
+            db_pipeline.refreshed_at = datetime.now()
+            db.session.merge(db_pipeline)
 
             db_pipeline.jobs = []
 
@@ -181,13 +240,7 @@ def create_app():
 
         db.session.commit()
 
-        commits = (
-            db.session.execute(
-                db.select(model.Commit).order_by(model.Commit.order.desc())
-            )
-            .scalars()
-            .all()
-        )
+        set_last_pipeline_refresh(datetime.now(tz=timezone.utc))
 
         source = request.args["source"]
         if source not in ("timeline", "pulls"):
@@ -207,7 +260,9 @@ def create_app():
         )
         await api_pipeline.fetch(gl)
 
-        pipeline = db.session.merge(model.Pipeline.from_api(api_pipeline))
+        pipeline = model.Pipeline.from_api(api_pipeline)
+        pipeline.refreshed_at = datetime.now()
+        pipeline = db.session.merge(pipeline)
 
         pipeline.jobs = []
 
@@ -424,6 +479,7 @@ def create_app():
             assert pr is not None
             sha = pr.head_sha
 
+        print(sha)
         trigger_commit = db.get_or_404(model.Commit, sha)
 
         commits = (
@@ -450,8 +506,18 @@ def create_app():
 
         variables = {
             "SOURCE_SHA": sha,
-            "NO_REPORT": "1",
         }
+
+        do_report = pr is not None
+        if arg := request.args.get("do_report"):
+            do_report = arg == "1"
+        if not do_report:
+            variables["NO_REPORT"] = "1"
+
+        if pr is not None:
+            variables["ACTS_GIT_REPO"] = pr.head_repo_clone_url
+            variables["ACTS_REF"] = pr.head_ref
+            variables["SOURCE_PULL"] = str(pr.number)
 
         if len(reverts) > 0:
             variables["REVERT_SHAS"] = ",".join(c.sha for c in reverts)
@@ -462,12 +528,13 @@ def create_app():
 
         if request.method == "GET":
             return render_template(
-                "run_pipeline.html",
+                "run_pipeline.html" if not is_htmx else "run_pipeline_inner.html",
                 commit=trigger_commit,
                 reverts=reverts,
                 patches=patches,
                 pr=pr,
                 variables=variables,
+                do_report=do_report,
             )
         elif request.method == "POST":
             url = f"{config.GITLAB_URL}/api/v4/projects/{config.GITLAB_PROJECT_ID}/trigger/pipeline"
@@ -480,6 +547,9 @@ def create_app():
                     **{f"variables[{k}]": v for k, v in variables.items()},
                 },
             ) as resp:
+                if resp.status != 201:
+                    info = await resp.json()
+                    raise RuntimeError(info["message"])
                 resp.raise_for_status()
                 pipeline = Pipeline(**await resp.json())
 
@@ -487,11 +557,22 @@ def create_app():
 
             db_pipeline = model.Pipeline.from_api(pipeline)
             db_pipeline.commit = trigger_commit
+            db_pipeline.refreshed_at = datetime.now()
             db.session.add(db_pipeline)
             db.session.commit()
 
             flash(f"Pipeline started: #{pipeline.id}", "success")
-            return "", 200, {"HX-Redirect": url_for("commit_detail", sha=sha)}
+            return (
+                "",
+                200,
+                {
+                    "HX-Redirect": url_for(
+                        "commit_detail",
+                        sha=sha,
+                        pull=pr.number if pr is not None else None,
+                    )
+                },
+            )
 
     async def token_valid(token):
         async with aiohttp.ClientSession() as session:
