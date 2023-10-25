@@ -1,3 +1,5 @@
+{% set sha = commit.sha if commit is defined else none %}
+{% set number = pull.number if pull is defined else none %}
 <div class="block patch-form" id="{%- if patch.id is none -%}
 new-patch
 {%- else -%}
@@ -7,9 +9,9 @@ patch-{{ patch.id }}
   hx-swap="outerHTML"
   hx-target="closest .patch-form"
 {% if patch.id is none -%}
-  hx-post="{{ url_for('commit_patches', sha=commit.sha) }}"
+  hx-post="{{ url_for('edit_patches', sha=sha, pull=number) }}"
 {%- else -%}
-  hx-put="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}"
+  hx-put="{{ url_for('patch', sha=sha, pull=number, patch=patch.id) }}"
 {%- endif %}
 >
 
@@ -30,7 +32,7 @@ patch-{{ patch.id }}
 
         {% if patch.id is not none %}
         <button class="button is-light" 
-          hx-put="{{ url_for('commit_patch_move', sha=commit.sha, patch=patch.id, dir='up') }}"
+          hx-put="{{ url_for('patch_move', sha=sha, pull=number, patch=patch.id, dir='up') }}"
           hx-target="body"
           {% if first %}disabled{% endif %}>
           <span class="icon">
@@ -39,7 +41,7 @@ patch-{{ patch.id }}
         </button>
 
         <button class="button is-light" 
-          hx-put="{{ url_for('commit_patch_move', sha=commit.sha, patch=patch.id, dir='down') }}"
+          hx-put="{{ url_for('patch_move', sha=sha, pull=number, patch=patch.id, dir='down') }}"
           hx-target="body"
           {% if last %}disabled{% endif %}>
           <span class="icon">
@@ -48,7 +50,8 @@ patch-{{ patch.id }}
         </button>
 
         <button class="button is-danger is-outlined" 
-          hx-delete="{{ url_for('commit_patch', sha=commit.sha, patch=patch.id) }}">
+          hx-target="body"
+          hx-delete="{{ url_for('patch', sha=sha, pull=number, patch=patch.id) }}">
           <span class="icon">
             <ion-icon name="close-outline"></ion-icon>
           </span>

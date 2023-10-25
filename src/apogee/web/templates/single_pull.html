@@ -1,0 +1,21 @@
+{% extends "two_column.html" %}
+
+{% block hero %}
+
+
+<h1 class="title">Pull Request</h1>
+{% with pull=pull %}
+	{% include "pull_title.html" %}
+{% endwith %}
+
+{% endblock %}
+
+{% block side_column_menu %}
+{% include "single_pull_menu.html" %}
+{% endblock %}
+
+{% block main_column %}
+
+PR!
+
+{% endblock %}

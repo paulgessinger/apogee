@@ -11,33 +11,41 @@
 
 	<div class="columns">
 		<div class="column">
-			{% with pull = pull %}
+			{% with pull = pull, status=latest_pipeline.status if latest_pipeline else none %}
 				{% include "pull_title.html" %}
 			{% endwith %}
 		</div>
 		<div class="column is-narrow">
 			<div class="field is-grouped">
-				{#
-				{% if commit.patches|length > 0 %}
+				{% if pull.patches|length > 0 %}
 				<p class="control">
-					<a href="{{ url_for('commit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>
+					<a class="button is-light is-warning"
+						href="{{ url_for('edit_patches', pull=pull.number) }}">
+						<span class="icon">
+							<ion-icon name="bandage"></ion-icon>
+						</span>
+						<span>{{ pull.patches|length }}</span>
+					</a>
 				</p>
 				{% endif %}
-				#}
+
 				<p class="control">
 					<a class="button is-primary" 
 						href="{{ url_for('run_pipeline', pull=pull.number, back=request.url) }}">
-						Run pipeline</a>
+						<span class="icon">
+							<ion-icon name="rocket"></ion-icon>
+						</span>
+					</a>
 				</p>
 
-				{#
-				{% if request.endpoint != "commit_detail" %}
 				<p class="control">
-					<a class="button"				href="{{ url_for("commit_detail", sha=commit.sha) }}">
-						Details</a>
+					<a class="button is-light"
+						href="{{ url_for('pulls.show', number=pull.number) }}">
+						<span class="icon">
+							<ion-icon name="information-circle"></ion-icon>
+						</span>
+					</a>
 				</p>
-				{% endif %}
-				#}
 			</div>
 		</div>
 	</div>

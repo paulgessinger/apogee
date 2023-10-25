@@ -1,0 +1,7 @@
+<p class="menu-label">
+	Pull Request
+</p>
+<ul class="menu-list">
+	<li><a class="{{ 'is-active' if request.endpoint == 'pulls.show' else '' }}" href="{{ url_for('pulls.show', number=pull.number) }}">Info</a></li>
+	<li><a class="{{ 'is-active' if request.endpoint == 'edit_patches' else '' }}" href="{{ url_for('edit_patches', pull=pull.number) }}">Patches</a></li>
+</ul>

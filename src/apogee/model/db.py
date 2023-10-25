@@ -112,9 +112,18 @@ class Patch(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     url: Mapped[str] = mapped_column()
 
-    commit_sha: Mapped[str] = mapped_column(ForeignKey("commit.sha"))
-    commit: Mapped["Commit"] = relationship(
+    commit_sha: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("commit.sha"), nullable=True
+    )
+    commit: Mapped[Optional["Commit"]] = relationship(
         foreign_keys=[commit_sha], back_populates="patches"
+    )
+
+    pull_request_number: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("pull_request.number"), nullable=True
+    )
+    pull_request: Mapped[Optional["PullRequest"]] = relationship(
+        foreign_keys=[pull_request_number], back_populates="patches"
     )
 
     order: Mapped[int] = mapped_column(nullable=False)
@@ -178,6 +187,8 @@ class PullRequest(db.Model):
 
     mergeable: Mapped[bool] = mapped_column(server_default="t")
 
+    patches: Mapped[list["Patch"]] = relationship(cascade="all, delete-orphan")
+
     @classmethod
     def from_api(cls, pull: ApiPullRequest) -> "PullRequest":
         return cls(
@@ -199,6 +210,22 @@ class PullRequest(db.Model):
             base_repo_clone_url=pull.base.repo.clone_url,
             mergeable=pull.mergeable if pull.mergeable is not None else True,
         )
+
+    @property
+    def latest_commit_pipeline(self) -> Optional["Pipeline"]:
+        commits = list(sorted(self.commits, key=lambda x: x.order))
+        if len(commits) == 0:
+            return None
+        return commits[-1].commit.latest_pipeline
+
+    @property
+    def latest_pipeline(self) -> Optional["Pipeline"]:
+        # @TODO: Slooooooww
+        for commit in sorted(self.commits, key=lambda x: x.order):
+            if pipeline := commit.commit.latest_pipeline:
+                return pipeline
+
+        return None
 
 
 class PrCommitAssociation(db.Model):

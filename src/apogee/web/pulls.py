@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Iterable, List, Tuple, cast
 
 from flask import Blueprint, flash, render_template, request
 from gidgethub.abc import GitHubAPI
@@ -34,6 +34,25 @@ class ExtendedPullRequest(PullRequest):
         arbitrary_types_allowed = True
 
     commit: model.Commit
+
+
+def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest], int]:
+    open_pulls: Iterable[model.PullRequest] = db.session.execute(
+        db.select(model.PullRequest)
+        .filter_by(state="open")
+        .order_by(model.PullRequest.updated_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    ).scalars()
+
+    total: int = cast(
+        int,
+        db.session.execute(
+            db.select(func.count("*")).where(model.PullRequest.state == "open")
+        ).scalar(),
+    )
+
+    return open_pulls, total
 
 
 @bp.route("/reload_pulls", methods=["POST"])
@@ -108,17 +127,7 @@ async def reload_pulls(gh: GitHubAPI):
     page = int(request.args.get("page", 1))
     per_page = 20
 
-    open_pulls = db.session.execute(
-        db.select(model.PullRequest)
-        .filter_by(state="open")
-        .order_by(model.PullRequest.updated_at.desc())
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    ).scalars()
-
-    total = db.session.execute(
-        db.select(func.count("*")).where(model.PullRequest.state == "open")
-    ).scalar()
+    open_pulls, total = get_open_pulls(page, per_page)
 
     return render_template(
         "pull_list.html",
@@ -134,17 +143,7 @@ async def reload_pulls(gh: GitHubAPI):
 async def index(gh: GitHubAPI):
     page = int(request.args.get("page", 1))
     per_page = 20
-    open_pulls = db.session.execute(
-        db.select(model.PullRequest)
-        .filter_by(state="open")
-        .order_by(model.PullRequest.updated_at.desc())
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    ).scalars()
-
-    total = db.session.execute(
-        db.select(func.count("*")).where(model.PullRequest.state == "open")
-    ).scalar()
+    open_pulls, total = get_open_pulls(page, per_page)
 
     return render_template(
         "pulls.html" if not is_htmx else "pull_list.html",
@@ -153,3 +152,20 @@ async def index(gh: GitHubAPI):
         per_page=per_page,
         total=total,
     )
+
+
+@bp.route("/<int:number>")
+@with_github
+async def show(gh: GitHubAPI, number: int):
+    #  page = int(request.args.get("page", 1))
+    #  per_page = 20
+    #  open_pulls, total = get_open_pulls(page, per_page)
+    pull = db.get_or_404(model.PullRequest, number)
+
+    return render_template("single_pull.html", pull=pull)
+
+
+@bp.route("/<int:number>/patches")
+@with_github
+async def patches(gh: GitHubAPI, number: int):
+    ...

@@ -1,0 +1,33 @@
+{% extends "two_column.html" %}
+
+{% block hero %}
+
+<h1 class="title">Pull Request</h1>
+{% with pull=pull %}
+	{% include "pull_title.html" %}
+{% endwith %}
+
+{% endblock %}
+
+{% block side_column_menu %}
+{% include "single_pull_menu.html" %}
+{% endblock %}
+
+{% block main_column %}
+
+<div class="box" id="commit-patch-edit">
+
+{% for patch in pull.patches|sort(attribute="order") %}
+  {% with pull=pull, patch=patch, first=loop.first, last=loop.last %}
+    {% include "patch_form.html" %}
+  {% endwith %}
+{% endfor %}
+
+
+{% with pull=pull, patch=create_patch %}
+{% include "patch_form.html" %}
+{% endwith %}
+
+</div>
+
+{% endblock %}

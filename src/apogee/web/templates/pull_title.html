@@ -1,4 +1,24 @@
-{% from "macros.html" import github_user %}
+{% from "macros.html" import github_user, status_to_class %}
+
+{% macro show_pipeline(pipeline, outdated=False) %}
+	<span class="tag {{ status_to_class(pipeline.status) }}"
+		x-tooltip.raw="{{ pipeline.status|upper }}">
+		{% if outdated %}
+		<span class="icon-text">
+			<span class="icon">
+				<ion-icon name="time"></ion-icon>
+
+			</span>
+			<span>
+				<a href="{{ pipeline.web_url }}">#{{ pipeline.id }}</a>
+			</span>
+		</span>
+		{% else %}
+			<a href="{{ pipeline.web_url }}">#{{ pipeline.id }}</a>
+		{% endif %}
+	</span>
+{% endmacro %}
+
 <p class="title is-6">
 						<span class="icon-text">
 							<span class="icon">
@@ -14,5 +34,14 @@
 	created {{ pull.created_at|datefmt }}, updated {{ pull.updated_at|datefmt }}<br>
 	<a href="https://github.com/{{ pull.head_repo_full_name }}/commit/{{ pull.head_sha }}"><code>{{ pull.head_label }}</code></a> @
 	<code x-tooltip.raw="{{ pull.head_sha }}">{{ pull.head_sha[:9] }}</code>,
-	{{ pull.commits | length }} commits
+	{{ pull.commits | length }} commits, 
+	{% set latest_commit_pipeline = pull.latest_commit_pipeline %}
+	{% set latest_pipeline = pull.latest_pipeline %}
+	{% if latest_commit_pipeline is not none %}
+		{{ show_pipeline(latest_commit_pipeline) }}
+	{% elif latest_pipeline is not none %}
+		{{ show_pipeline(latest_pipeline, outdated=True) }}
+	{% else %}
+	<span class="tag is-light">No pipeline</span>
+	{% endif %}
 </p>

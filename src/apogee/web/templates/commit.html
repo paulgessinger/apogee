@@ -13,20 +13,33 @@
 			<div class="field is-grouped">
 				{% if commit.patches|length > 0 %}
 				<p class="control">
-					<a href="{{ url_for('commit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>
+					{#<a href="{{ url_for('edit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>#}
+					<a class="button is-light is-warning"
+						href="{{ url_for('edit_patches', sha=commit.sha) }}">
+						<span class="icon">
+							<ion-icon name="bandage"></ion-icon>
+						</span>
+						<span>{{ commit.patches|length }}</span>
+					</a>
 				</p>
 				{% endif %}
 				<p class="control">
 					<a class="button is-primary" 
 						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if pull else none) }}">
-						Run pipeline</a>
+						<span class="icon">
+							<ion-icon name="rocket"></ion-icon>
+						</span>
+					</a>
 				</p>
 
 				{% if request.endpoint != "commit_detail" %}
 				<p class="control">
-					<a class="button"
+					<a class="button is-light"
 				href="{{ url_for("commit_detail", sha=commit.sha) }}">
-						Details</a>
+						<span class="icon">
+							<ion-icon name="information-circle"></ion-icon>
+						</span>
+					</a>
 				</p>
 				{% endif %}
 

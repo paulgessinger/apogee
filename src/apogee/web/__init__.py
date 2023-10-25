@@ -300,26 +300,13 @@ def create_app():
             .scalars()
             .all()
         )
-        return render_template(
-            "commits.html",
-            commits=commits,
-        )
+        return "", 200, {"HX-Refresh": "true"}
 
     @app.route("/reset_patches", methods=["POST"])
     async def reset_patches():
         db.session.execute(sqlalchemy.delete(model.Patch))
         db.session.commit()
-        commits = (
-            db.session.execute(
-                db.select(model.Commit).order_by(model.Commit.order.desc())
-            )
-            .scalars()
-            .all()
-        )
-        return render_template(
-            "commits.html",
-            commits=commits,
-        )
+        return "", 200, {"HX-Refresh": "true"}
 
     @app.route("/commit/<sha>")
     async def commit_detail(sha: str) -> str:
@@ -332,14 +319,31 @@ def create_app():
 
         return render_template("commit_detail.html", commit=commit, pull=pull)
 
-    @app.route("/commit/<sha>/patches", methods=["GET", "POST"])
-    async def commit_patches(sha):
-        commit = db.get_or_404(model.Commit, sha)
+    @app.route("/edit_patches", methods=["GET", "POST"])
+    async def edit_patches():
+        sha = request.args.get("sha")
+        pull = request.args.get("pull")
+
+        obj: model.Commit | model.PullRequest
+        render_args = []
+        if sha is not None:
+            obj = db.get_or_404(model.Commit, sha)
+            render_args = {
+                "template_name_or_list": "commit_patches.html",
+                "commit": obj,
+            }
+        elif pull is not None:
+            obj = db.get_or_404(model.PullRequest, int(pull))
+            render_args = {
+                "template_name_or_list": "pull_patches.html",
+                "pull": obj,
+            }
+        else:
+            abort(404)
 
         if request.method == "GET":
             return render_template(
-                "commit_patches.html",
-                commit=commit,
+                **render_args,
                 create_patch=Patch(id=None, url=""),
             )
 
@@ -347,43 +351,53 @@ def create_app():
             url = request.form.get("url", "").strip()
             if len(url) == 0:
                 return render_template(
-                    "patch_form.html",
-                    commit=commit,
+                    **render_args,
                     patch=Patch(id=None, url=url),
                     error=True,
                 )
-            max_order = (
-                (max([p.order for p in commit.patches]) + 1)
-                if len(commit.patches) > 0
-                else 0
-            )
-            patch = model.Patch(url=url, commit_sha=commit.sha, order=max_order)
+            patches = list(obj.patches)
+            max_order = (max([p.order for p in patches]) + 1) if len(patches) > 0 else 0
+            if sha is not None:
+                patch = model.Patch(url=url, commit_sha=sha, order=max_order)
+            else:
+                patch = model.Patch(
+                    url=url, pull_request_number=obj.number, order=max_order
+                )
             db.session.add(patch)
             db.session.commit()
 
             return (
                 render_template(
-                    "commit_patches.html",
-                    commit=commit,
+                    **render_args,
                     create_patch=Patch(id=None, url=""),
                 ),
                 200,
                 {"HX-Retarget": "body"},
             )
 
-    @app.route("/commit/<sha>/patch/<patch>/move", methods=["PUT"])
-    def commit_patch_move(sha, patch):
-        commit = db.get_or_404(model.Commit, sha)
+    @app.route("/patch/<patch>/move", methods=["PUT"])
+    def patch_move(patch):
+        sha = request.args.get("sha")
+        pull = request.args.get("pull")
+
+        obj: model.Commit | model.PullRequest
+        if sha is not None:
+            obj = db.get_or_404(model.Commit, sha)
+        elif pull is not None:
+            obj = db.get_or_404(model.PullRequest, int(pull))
+        else:
+            abort(404)
+
         patch = db.get_or_404(model.Patch, patch)
-        patches = commit.patches
-        #  patches = [copy.deepcopy(p) for p in commit.patches]
+
+        patches = obj.patches
         patches.sort(key=lambda p: p.order)
         idx = [p.id for p in patches].index(patch.id)
 
         direction = request.args["dir"]
 
         if (direction == "up" and idx == 0) or (
-            direction == "down" and idx == len(commit.patches) - 1
+            direction == "down" and idx == len(patches) - 1
         ):
             return "no", 400
 
@@ -402,41 +416,79 @@ def create_app():
         for i, p in enumerate(patches):
             p.order = i
 
-        commit.patches = []
-        commit.patches = patches
+        obj.patches = []
+        obj.patches = patches
 
         db.session.commit()
-        return render_template(
-            "commit_patches.html",
-            commit=commit,
-            create_patch=Patch(id=None, url=""),
-        )
+        if sha is not None:
+            return render_template(
+                "commit_patches.html",
+                commit=obj,
+                create_patch=Patch(id=None, url=""),
+            )
+        else:
+            return render_template(
+                "pull_patches.html",
+                pull=obj,
+                create_patch=Patch(id=None, url=""),
+            )
 
-    @app.route("/commit/<sha>/patch/<patch>", methods=["PUT", "DELETE"])
-    def commit_patch(sha, patch):
-        commit = db.get_or_404(model.Commit, sha)
+    @app.route("/patch/<patch>", methods=["PUT", "DELETE"])
+    def patch(patch):
+        sha = request.args.get("sha")
+        pull = request.args.get("pull")
+
+        obj: model.Commit | model.PullRequest
+        if sha is not None:
+            obj = db.get_or_404(model.Commit, sha)
+        elif pull is not None:
+            obj = db.get_or_404(model.PullRequest, int(pull))
+        else:
+            abort(404)
+
         patch = db.get_or_404(model.Patch, patch)
 
         if request.method == "PUT":
             url = request.form.get("url", "").strip()
             valid = len(url) > 0
-            #  idx = [p.id for p in commit.patches].index(UUID(patch))
-            #  commit.patches[idx].url = url
-            #  patch = commit.patches[idx]
             if valid:
                 patch.url = url
                 db.session.commit()
+
+            all_patches = list(obj.patches)
+            first = all_patches[0] == patch
+            last = all_patches[-1] == patch
+
+            kwargs = {}
+            if sha is not None:
+                kwargs["commit"] = obj
+            else:
+                kwargs["pull"] = obj
             return render_template(
                 "patch_form.html",
-                commit=commit,
                 patch=patch,
                 error=not valid,
                 saved=valid,
+                first=first,
+                last=last,
+                **kwargs,
             )
         if request.method == "DELETE":
             db.session.delete(patch)
             db.session.commit()
-            return ""
+
+            if sha is not None:
+                return render_template(
+                    "commit_patches.html",
+                    commit=obj,
+                    create_patch=Patch(id=None, url=""),
+                )
+            else:
+                return render_template(
+                    "pull_patches.html",
+                    pull=obj,
+                    create_patch=Patch(id=None, url=""),
+                )
 
     @app.route("/commit/<sha>/note")
     def commit_note(sha):
@@ -479,30 +531,33 @@ def create_app():
             assert pr is not None
             sha = pr.head_sha
 
-        print(sha)
         trigger_commit = db.get_or_404(model.Commit, sha)
 
-        commits = (
-            db.session.execute(
-                db.select(model.Commit)
-                .order_by(model.Commit.order.desc())
-                .where(model.Commit.order <= trigger_commit.order)
+        # @TODO: In pull case take all of main branch
+        commit_select = db.select(model.Commit).order_by(model.Commit.order.desc())
+
+        if pull is None:
+            commit_select = commit_select.where(
+                model.Commit.order <= trigger_commit.order
             )
-            .scalars()
-            .all()
-        )
+
+        commits = db.session.execute(commit_select).scalars().all()
 
         reverts = []
-        patches = []
+        patches: List[model.Patch] = []
 
         for commit in commits:
             #  print(commit.sha, commit.committed_date, commit.subject)
             if commit.revert:
                 reverts.append(commit)
-            patches.extend(commit.patches)
+            patches.extend(reversed(sorted(commit.patches, key=lambda p: p.order)))
+
+        patches.reverse()
+
+        if pr is not None:
+            patches += sorted(pr.patches, key=lambda p: p.order)
 
         reverts.reverse()
-        patches.reverse()
 
         variables = {
             "SOURCE_SHA": sha,

@@ -3,5 +3,5 @@
 </p>
 <ul class="menu-list">
 	<li><a class="{{ 'is-active' if request.endpoint == 'commit_detail' else '' }}" href="{{ url_for('commit_detail', sha=commit.sha) }}">Info</a></li>
-	<li><a class="{{ 'is-active' if request.endpoint == 'commit_patches' else '' }}" href="{{ url_for('commit_patches', sha=commit.sha) }}">Patches</a></li>
+	<li><a class="{{ 'is-active' if request.endpoint == 'edit_patches' else '' }}" href="{{ url_for('edit_patches', sha=commit.sha) }}">Patches</a></li>
 </ul>

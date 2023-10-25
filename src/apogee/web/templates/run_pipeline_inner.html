@@ -75,12 +75,15 @@ Pipeline will be triggered on <a href="{{ pr.head_repo_html_url }}"><code>{{ pr.
 	</p>
 	<p class="control">
 		<button class="button is-primary" hx-post={{ request.url }}>
-			Launch
+			<span class="icon">
+				<ion-icon name="rocket"></ion-icon>
+			</span>
+			<span>Launch</span>
 		</button>
 	</p>
 	{% if "back" in request.args %}
 	<p class="control">
-		<a class="button is-light" href={{ request.args["back"] }}>
+		<a class="button is-light is-warning" href={{ request.args["back"] }}>
 			Cancel
 		</a>
 	</p>
