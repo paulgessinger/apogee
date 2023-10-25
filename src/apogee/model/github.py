@@ -86,4 +86,4 @@ class PullRequest(BaseModel):
     head: Source
     base: Source
 
-    mergeable: bool
+    mergeable: bool | None = None

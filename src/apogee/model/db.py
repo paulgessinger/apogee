@@ -181,7 +181,7 @@ class PullRequest(db.Model):
     @classmethod
     def from_api(cls, pull: ApiPullRequest) -> "PullRequest":
         return cls(
-            **pull.dict(exclude={"head", "base", "user"}),
+            **pull.dict(exclude={"head", "base", "user", "mergeable"}),
             user_id=pull.user.id,
             head_label=pull.head.label,
             head_ref=pull.head.ref,
@@ -197,7 +197,7 @@ class PullRequest(db.Model):
             base_repo_full_name=pull.base.repo.full_name,
             base_repo_html_url=pull.base.repo.html_url,
             base_repo_clone_url=pull.base.repo.clone_url,
-            mergeable=pull.mergeable,
+            mergeable=pull.mergeable if pull.mergeable is not None else True,
         )
 
 

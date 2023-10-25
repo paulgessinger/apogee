@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from flask import Blueprint, flash, render_template
+from flask import Blueprint, flash, render_template, request
 from gidgethub.abc import GitHubAPI
 from sqlalchemy.orm import joinedload
+import sqlalchemy.sql.functions as func
 
 from apogee.util import gather_limit
 from apogee.web.util import with_github
@@ -104,24 +105,51 @@ async def reload_pulls(gh: GitHubAPI):
 
     db.session.commit()
 
+    page = int(request.args.get("page", 1))
+    per_page = 20
+
     open_pulls = db.session.execute(
-        db.select(model.PullRequest).filter_by(state="open")
+        db.select(model.PullRequest)
+        .filter_by(state="open")
+        .order_by(model.PullRequest.updated_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
     ).scalars()
+
+    total = db.session.execute(
+        db.select(func.count("*")).where(model.PullRequest.state == "open")
+    ).scalar()
 
     return render_template(
         "pull_list.html",
         pulls=open_pulls,
+        page=page,
+        per_page=per_page,
+        total=total,
     )
 
 
 @bp.route("/")
 @with_github
 async def index(gh: GitHubAPI):
+    page = int(request.args.get("page", 1))
+    per_page = 20
     open_pulls = db.session.execute(
-        db.select(model.PullRequest).filter_by(state="open")
+        db.select(model.PullRequest)
+        .filter_by(state="open")
+        .order_by(model.PullRequest.updated_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
     ).scalars()
+
+    total = db.session.execute(
+        db.select(func.count("*")).where(model.PullRequest.state == "open")
+    ).scalar()
 
     return render_template(
         "pulls.html" if not is_htmx else "pull_list.html",
         pulls=open_pulls,
+        page=page,
+        per_page=per_page,
+        total=total,
     )
