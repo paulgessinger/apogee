@@ -46,6 +46,18 @@ No patches!
 </div>
 </div>
 
+{% if pr is not none %}
+<hr/>
+Pipeline will be triggered on <a href="{{ pr.head_repo_html_url }}"><code>{{ pr.head_repo_full_name }}</code></a> at <code>{{ pr.head_ref }}</code>.
+{% endif %}
+
+<hr/>
+
+{% with variables = variables %}
+{% include "variable_table.html" %}
+{% endwith %}
+
+<hr/>
 
 <div class="field is-grouped is-grouped-centered">
 	<p class="control">

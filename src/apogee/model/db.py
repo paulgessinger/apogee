@@ -2,11 +2,15 @@ import datetime
 from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, MetaData, String, Integer, ForeignKey, JSON, event
+from sqlalchemy import Column, MetaData, String, Integer, ForeignKey, JSON, event, null
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from apogee.model.github import Commit as ApiCommit, User as ApiUser
+from apogee.model.github import (
+    Commit as ApiCommit,
+    User as ApiUser,
+    PullRequest as ApiPullRequest,
+)
 from apogee.model.gitlab import Pipeline as ApiPipeline, Job as ApiJob
 
 
@@ -116,13 +120,67 @@ class PullRequest(db.Model):
     html_url: Mapped[str] = mapped_column()
     state: Mapped[str] = mapped_column()
     title: Mapped[str] = mapped_column()
-    body: Mapped[str] = mapped_column()
+    body: Mapped[Optional[str]] = mapped_column()
     created_at: Mapped[datetime.datetime] = mapped_column()
     updated_at: Mapped[datetime.datetime] = mapped_column()
     closed_at: Mapped[Optional[datetime.datetime]] = mapped_column()
     merged_at: Mapped[Optional[datetime.datetime]] = mapped_column()
     merge_commit_sha: Mapped[Optional[str]] = mapped_column()
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    user: Mapped["GitHubUser"] = relationship(foreign_keys=[user_id])
+
+    head_label: Mapped[str] = mapped_column()
+    head_ref: Mapped[str] = mapped_column()
     head_sha: Mapped[str] = mapped_column()
+    head_user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    head_user: Mapped["GitHubUser"] = relationship(foreign_keys=[head_user_id])
+    head_repo_full_name: Mapped[str] = mapped_column()
+    head_repo_html_url: Mapped[str] = mapped_column()
+    head_repo_clone_url: Mapped[str] = mapped_column()
+
+    base_label: Mapped[str] = mapped_column()
+    base_ref: Mapped[str] = mapped_column()
+    base_sha: Mapped[str] = mapped_column()
+    base_user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    base_user: Mapped["GitHubUser"] = relationship(foreign_keys=[base_user_id])
+    base_repo_full_name: Mapped[str] = mapped_column()
+    base_repo_html_url: Mapped[str] = mapped_column()
+    base_repo_clone_url: Mapped[str] = mapped_column()
+
+    commits: Mapped[list["PrCommitAssociation"]] = relationship()
+
+    @classmethod
+    def from_api(cls, pull: ApiPullRequest) -> "PullRequest":
+        return cls(
+            **pull.dict(exclude={"head", "base", "user"}),
+            user_id=pull.user.id,
+            head_label=pull.head.label,
+            head_ref=pull.head.ref,
+            head_sha=pull.head.sha,
+            head_user_id=pull.head.user.id,
+            head_repo_full_name=pull.head.repo.full_name,
+            head_repo_html_url=pull.head.repo.html_url,
+            head_repo_clone_url=pull.head.repo.clone_url,
+            base_label=pull.base.label,
+            base_ref=pull.base.ref,
+            base_sha=pull.base.sha,
+            base_user_id=pull.base.user.id,
+            base_repo_full_name=pull.base.repo.full_name,
+            base_repo_html_url=pull.base.repo.html_url,
+            base_repo_clone_url=pull.base.repo.clone_url,
+        )
+
+
+class PrCommitAssociation(db.Model):
+    pull_request_number: Mapped[int] = mapped_column(
+        ForeignKey("pull_request.number"), primary_key=True
+    )
+
+    commit_sha: Mapped[str] = mapped_column(ForeignKey("commit.sha"), primary_key=True)
+    commit: Mapped["Commit"] = relationship()
+
+    order: Mapped[int] = mapped_column()
 
 
 class Pipeline(db.Model):

@@ -102,7 +102,7 @@ def create_app():
 
     @app.before_request
     def before_request():
-        if "HX-Request" in request.headers:
+        if "HX-Request" in request.headers and "HX-Boosted" not in request.headers:
             _is_htmx_var.set(True)
 
     @app.before_request
@@ -189,11 +189,11 @@ def create_app():
             .all()
         )
 
+        source = request.args["source"]
+        if source not in ("timeline", "pulls"):
+            abort(400)
         flash(f"Fetched {len(pipelines)} pipelines", "success")
-        return render_template(
-            "commits.html",
-            commits=commits,
-        )
+        return redirect(url_for(f"{source}.index"))
 
     @app.route("/reload_pipeline/<int:pipeline_id>", methods=["POST"])
     @with_gitlab
@@ -267,10 +267,15 @@ def create_app():
         )
 
     @app.route("/commit/<sha>")
-    async def commit_detail(sha):
+    async def commit_detail(sha: str) -> str:
         commit = db.get_or_404(model.Commit, sha)
+        pull: model.PullRequest | None = None
+        if number := request.args.get("pull"):
+            pull = db.get_or_404(model.PullRequest, int(number))
 
-        return render_template("commit_detail.html", commit=commit)
+        print(pull)
+
+        return render_template("commit_detail.html", commit=commit, pull=pull)
 
     @app.route("/commit/<sha>/patches", methods=["GET", "POST"])
     async def commit_patches(sha):
@@ -411,11 +416,13 @@ def create_app():
         if sha is None and pull is None:
             abort(404)
 
-        pr: PullRequest | None = None
+        pr: model.PullRequest | None = None
         if pull is not None:
-            data = await gh.getitem(f"/repos/{config.REPOSITORY}/pulls/{pull}")
-            pr = PullRequest(**data)
-            sha = pr.head.sha
+            pr = db.session.execute(
+                db.select(model.PullRequest).filter_by(number=pull)
+            ).scalar_one()
+            assert pr is not None
+            sha = pr.head_sha
 
         trigger_commit = db.get_or_404(model.Commit, sha)
 
@@ -441,6 +448,18 @@ def create_app():
         reverts.reverse()
         patches.reverse()
 
+        variables = {
+            "SOURCE_SHA": sha,
+            "NO_REPORT": "1",
+        }
+
+        if len(reverts) > 0:
+            variables["REVERT_SHAS"] = ",".join(c.sha for c in reverts)
+
+        if len(patches) > 0:
+            variables["PATCH_URLS"] = ",".join(p.url for p in patches)
+            variables["NO_CANARY"] = "1"
+
         if request.method == "GET":
             return render_template(
                 "run_pipeline.html",
@@ -448,21 +467,10 @@ def create_app():
                 reverts=reverts,
                 patches=patches,
                 pr=pr,
+                variables=variables,
             )
         elif request.method == "POST":
             url = f"{config.GITLAB_URL}/api/v4/projects/{config.GITLAB_PROJECT_ID}/trigger/pipeline"
-
-            variables = {
-                "SOURCE_SHA": sha,
-                "NO_REPORT": "1",
-            }
-
-            if len(reverts) > 0:
-                variables["REVERT_SHAS"] = ",".join(c.sha for c in reverts)
-
-            if len(patches) > 0:
-                variables["PATCH_URLS"] = ",".join(p.url for p in patches)
-                variables["NO_CANARY"] = "1"
 
             async with session.post(
                 url,

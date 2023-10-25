@@ -31,7 +31,7 @@
 		</p>
 	  <p class="control">
 		<button class="button"
-					hx-post={{ url_for('reload_pipelines') }}
+					hx-post={{ url_for('reload_pipelines', source='timeline') }}
 					hx-target="#commits"
 					>
 						<span class="icon">

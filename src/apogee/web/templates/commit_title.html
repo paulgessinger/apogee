@@ -1,8 +1,7 @@
 {% from "macros.html" import github_user %}
-{% set subject = commit.message.split("\n")[0]|trim %}
 
 <p class="title is-6">
-	{{ subject|pr_links|safe }}
+	{{ commit.subject|pr_links|safe }}
 </p>
 <p class="subtitle is-6">
 	{% if commit.author is not none %}

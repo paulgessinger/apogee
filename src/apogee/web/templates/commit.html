@@ -18,14 +18,13 @@
 				{% endif %}
 				<p class="control">
 					<a class="button is-primary" 
-				    hx-boost="true"
-						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url) }}">
+						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if pull else none) }}">
 						Run pipeline</a>
 				</p>
 
 				{% if request.endpoint != "commit_detail" %}
 				<p class="control">
-					<a class="button" hx-boost="true"
+					<a class="button"
 				href="{{ url_for("commit_detail", sha=commit.sha) }}">
 						Details</a>
 				</p>

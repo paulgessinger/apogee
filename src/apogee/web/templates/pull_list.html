@@ -1,0 +1,76 @@
+{% with swap = true %}
+{% include "notifications.html" %}
+{% endwith %}
+
+{% for pull in pulls|sort(attribute="updated_at", reverse=True) %}
+
+
+<div class="box">
+
+	<div class="columns">
+		<div class="column">
+			{% with pull = pull %}
+				{% include "pull_title.html" %}
+			{% endwith %}
+		</div>
+		<div class="column is-narrow">
+			<div class="field is-grouped">
+				{#
+				{% if commit.patches|length > 0 %}
+				<p class="control">
+					<a href="{{ url_for('commit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>
+				</p>
+				{% endif %}
+				#}
+				<p class="control">
+					<a class="button is-primary" 
+						href="{{ url_for('run_pipeline', pull=pull.number, back=request.url) }}">
+						Run pipeline</a>
+				</p>
+
+				{#
+				{% if request.endpoint != "commit_detail" %}
+				<p class="control">
+					<a class="button"				href="{{ url_for("commit_detail", sha=commit.sha) }}">
+						Details</a>
+				</p>
+				{% endif %}
+				#}
+			</div>
+		</div>
+	</div>
+
+	<span class="tags">
+	{% for assoc in pull.commits | sort(attribute="order", reverse=True) %}
+				<span class="tag"
+					x-tooltip.raw="{{ assoc.commit.sha }}">
+					<a href="{{ url_for('commit_detail', sha=assoc.commit.sha, pull=pull.number) }}">{{ assoc.commit.sha[:9] }}</a>
+				</span>
+			{#{{ assoc.commit_sha }} - {{ assoc.commit.subject }} - {{ assoc.order }}<br>#}
+	{% endfor %}
+	</span>
+
+	{#
+	{% set pipelines = pull.commit.pipelines|sort(attribute="created_at", reverse=True) %}
+	{% if expanded %}
+		{% for pipeline in pipelines %}
+			{% with pipeline = pipeline, expanded = expanded and loop.first %}
+					{% include "pipeline.html" %}
+			{% endwith %}
+			{% else %}
+			No pipelines
+		{% endfor %}
+	{% else %}
+		{% with pipeline = pipelines|first, expanded = False %}
+				{% if pipeline is defined %}
+				{% include "pipeline.html" %}
+				{% else %}
+				No pipelines
+				{% endif %}
+		{% endwith %}
+	{% endif %}
+	#}
+
+
+</div>
+	{% endfor %}

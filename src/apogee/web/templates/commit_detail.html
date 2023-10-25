@@ -2,9 +2,18 @@
 
 {% block hero %}
 
-{% with commit=commit %}
-{% include "commit_title.html" %}
-{% endwith %}
+
+{% if pull is not none %}
+	<h1 class="title">Pull Request</h1>
+	{% with pull=pull %}
+		{% include "pull_title.html" %}
+	{% endwith %}
+{% else %}
+	<h1 class="title">Commit</h1>
+	{% with commit=commit %}
+		{% include "commit_title.html" %}
+	{% endwith %}
+{% endif %}
 
 {% endblock %}
 

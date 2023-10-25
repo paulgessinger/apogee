@@ -66,22 +66,9 @@
 		<div class="block" x-show="expanded" x-collapse>
 			<hr/>
 
-			<table class="table is-fullwidth">
-				<thead>
-					<tr>
-						<th>Variable</th>
-						<th>Value</th>
-					</tr>
-				</thead>
-				<tbody>
-				{% for key, value in pipeline.variables.items() if key != "TRIGGER_PAYLOAD" %}
-				<tr>
-					<td><code>{{ key }}</code></td>
-					<td>{{ value }}</td>
-				</tr>
-				{% endfor %}
-				</tbody>
-			</table>
+			{% with variables = pipeline.variables %}
+			{% include "variable_table.html" %}
+			{% endwith %}
 
 			<hr/>
 

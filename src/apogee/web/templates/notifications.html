@@ -1,4 +1,4 @@
-<div id="flash-notifications" hx-swap-oob="true">
+<div id="flash-notifications" {% if swap %}hx-swap-oob="true"{% endif %}>
 	{% for category, message in get_flashed_messages(with_categories=true) %}
 	<div class="notification is-light is-{{ category }} mb-5">
 		{{ message }}

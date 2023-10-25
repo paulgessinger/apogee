@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, flash
 from gidgethub.abc import GitHubAPI
 
+from apogee.web import is_htmx
 from apogee.web.util import with_github
 from apogee.model.db import db
 from apogee.model import db as model
@@ -22,8 +23,9 @@ async def index(gh: GitHubAPI):
         .scalars()
         .all()
     )
+
     return render_template(
-        "timeline.html",
+        "timeline.html" if not is_htmx else "commits.html",
         commits=commits,
     )
 

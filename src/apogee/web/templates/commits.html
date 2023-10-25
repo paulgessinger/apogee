@@ -1,5 +1,7 @@
 {% if is_htmx %}
+{% with swap = true %}
 {% include "notifications.html" %}
+{% endwith %}
 {% endif %}
 
 {% for commit in commits %}

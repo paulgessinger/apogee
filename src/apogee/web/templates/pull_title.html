@@ -12,5 +12,7 @@
 <p class="subtitle is-6">
 	<span class="ml-1">{{ github_user(pull.user) }}</span>,
 	created {{ pull.created_at|datefmt }}, updated {{ pull.updated_at|datefmt }}<br>
-	<a href="{{ pull.head.repo.html_url }}/commit/{{ pull.head.sha }}"><code>{{ pull.head.label }}</code></a>
+	<a href="https://github.com/{{ pull.head_repo_full_name }}/commit/{{ pull.head_sha }}"><code>{{ pull.head_label }}</code></a> @
+	<code x-tooltip.raw="{{ pull.head_sha }}">{{ pull.head_sha[:9] }}</code>,
+	{{ pull.commits | length }} commits
 </p>
