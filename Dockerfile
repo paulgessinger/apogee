@@ -1,11 +1,11 @@
-FROM python:3.11-bookworm as builder
+FROM python:3.11-slim-bookworm as builder
 
 RUN pip install poetry
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry export -o requirements.txt
 
-FROM python:3.11-bookworm
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
