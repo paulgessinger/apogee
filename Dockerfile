@@ -24,4 +24,7 @@ ENV TZ=Europe/Zurich
 
 COPY start.sh .
 
+RUN chgrp -R 0 /app && \
+    chmod -R g=u /app
+
 CMD ["bash", "./start.sh"]

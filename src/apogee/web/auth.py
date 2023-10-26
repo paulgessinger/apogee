@@ -33,7 +33,8 @@ def cern_callback():
 
 @bp.route("/login-github", methods=["GET", "POST"])
 async def login_github():
-    return github.authorize()
+    redirect_uri = github.authorize()
+    return redirect_uri
 
 
 @bp.route("/github-callback")

@@ -34,6 +34,7 @@ import aiohttp
 import sqlalchemy
 import click
 from authlib.integrations.flask_client import OAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 from apogee.forms import PatchForm
@@ -75,6 +76,8 @@ def create_app():
 
     app.config.from_prefixed_env()
     app.config["SESSION_TYPE"] = "filesystem"
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
     oauth.init_app(app)
 
