@@ -75,17 +75,21 @@ def create_app():
     app = flask.Flask(__name__)
 
     app.config.from_prefixed_env()
-    app.config["SESSION_TYPE"] = "filesystem"
+    app.config["SESSION_TYPE"] = "sqlalchemy"
+    app.config["SESSION_SQLALCHEMY"] = db
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
     oauth.init_app(app)
 
-    Session(app)
     github.init_app(app)
 
     db.init_app(app)
     migrate = Migrate(app, db)
+
+    session = Session(app)
+    with app.app_context():
+        session.app.session_interface.db.create_all()
 
     from apogee.web.timeline import bp as timeline_bp
     from apogee.web.pulls import bp as pulls_bp
