@@ -131,9 +131,15 @@ def create_app():
         if "HX-Request" in request.headers and "HX-Boosted" not in request.headers:
             _is_htmx_var.set(True)
 
+    unprotected_endpoints = {"static"}
+
+    def unprotected(fn):
+        unprotected_endpoints.add(fn.__name__)
+        return fn
+
     @app.before_request
     async def login_required():
-        if request.endpoint == "static":
+        if request.endpoint in unprotected_endpoints:
             return
         if (
             "gh_token" not in web_session or "cern_user" not in web_session
@@ -187,7 +193,7 @@ def create_app():
                 200,
                 {"HX-Reswap": "none"},
             )
-        raise e
+        #  raise e
 
     @app.route("/")
     async def index():
@@ -199,7 +205,7 @@ def create_app():
         updated_after = datetime.now(tz=timezone.utc) - timedelta(
             days=config.GITLAB_PIPELINES_WINDOW_DAYS
         )
-        updated_after = max(updated_after, get_last_pipeline_refresh() or updated_after)
+        #  updated_after = max(updated_after, get_last_pipeline_refresh() or updated_after)
 
         pipelines: List[Pipeline] = []
 
@@ -703,6 +709,8 @@ def create_app():
                 web_url=f"{config.GITLAB_URL}/{config.GITLAB_PROJECT}/-/pipelines/{data['id']}",
                 variables={v["key"]: v["value"] for v in data["variables"]},
             )
+
+            print("Updating pipeline", api_pipeline.id)
             api_pipeline.jobs = []
 
             for j in payload["builds"]:
@@ -737,7 +745,9 @@ def create_app():
                 # ignore these, we don't care about these commits
                 return
 
-            db_pipeline = db.session.merge(model.Pipeline.from_api(api_pipeline))
+            db_pipeline = model.Pipeline.from_api(api_pipeline)
+            db_pipeline.refreshed_at = datetime.now()
+            db_pipeline = db.session.merge(db_pipeline)
             db_pipeline.jobs = []
 
             for job in api_pipeline.jobs:
@@ -748,6 +758,7 @@ def create_app():
             db.session.commit()
 
     @app.route("/webhook/gitlab", methods=["POST"])
+    @unprotected
     def gitlab_webhook():
         body = request.json
         if body is None:
