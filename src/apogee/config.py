@@ -14,3 +14,9 @@ GITLAB_TOKEN = os.environ["GITLAB_TOKEN"]
 GITLAB_TRIGGER_TOKEN = os.environ["GITLAB_TRIGGER_TOKEN"]
 
 CACHE_DIR = Path(os.environ["CACHE_DIR"])
+
+CERN_AUTH_METADATA_URL = (
+    "https://auth.cern.ch/auth/realms/cern/.well-known/openid-configuration"
+)
+CERN_AUTH_CLIENT_ID = os.environ["CERN_AUTH_CLIENT_ID"]
+CERN_AUTH_CLIENT_SECRET = os.environ["CERN_AUTH_CLIENT_SECRET"]

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import functools
 import aiohttp
@@ -24,7 +25,7 @@ def require_login(fn):
     @functools.wraps(fn)
     async def wrapped(*args, **kwargs):
         if "gh_token" not in web_session:
-            return redirect(url_for("index"))
+            return redirect(url_for("login_github"))
 
         if "gh_user" not in web_session:
             async with aiohttp.ClientSession() as session:
@@ -32,7 +33,7 @@ def require_login(fn):
                     session, "apogee", oauth_token=str(web_session["gh_token"])
                 )
                 web_session["gh_user"] = await gh.getitem("/user")
-        g.user = web_session["gh_user"]
+        g.gh_user = web_session["gh_user"]
 
         return await fn(*args, **kwargs)
 

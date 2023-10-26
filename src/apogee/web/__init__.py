@@ -8,6 +8,7 @@ import re
 from typing import Any, Dict, List, cast
 from uuid import UUID
 import flask
+import threading
 from flask import (
     abort,
     current_app,
@@ -32,17 +33,17 @@ from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
 import click
-import threading
+from authlib.integrations.flask_client import OAuth
+
 
 from apogee.forms import PatchForm
-from apogee.model.github import PullRequest
+from apogee.model.github import PullRequest, User
 from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
 from apogee.web.util import (
     get_last_pipeline_refresh,
-    require_login,
     set_last_pipeline_refresh,
     with_github,
     with_gitlab,
@@ -57,23 +58,39 @@ _is_htmx_var = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
 
 
+oauth = OAuth()
+github = GitHub()
+
+oauth.register(
+    name="cern",
+    server_metadata_url=config.CERN_AUTH_METADATA_URL,
+    client_id=config.CERN_AUTH_CLIENT_ID,
+    client_secret=config.CERN_AUTH_CLIENT_SECRET,
+    client_kwargs={"scope": "openid email profile"},
+)
+
+
 def create_app():
     app = flask.Flask(__name__)
 
     app.config.from_prefixed_env()
     app.config["SESSION_TYPE"] = "filesystem"
 
+    oauth.init_app(app)
+
     Session(app)
-    github = GitHub(app)
+    github.init_app(app)
 
     db.init_app(app)
     migrate = Migrate(app, db)
 
     from apogee.web.timeline import bp as timeline_bp
     from apogee.web.pulls import bp as pulls_bp
+    from apogee.web.auth import bp as auth_bp
 
     app.register_blueprint(timeline_bp)
     app.register_blueprint(pulls_bp)
+    app.register_blueprint(auth_bp)
 
     @app.cli.command("import")
     @click.argument("path")
@@ -105,7 +122,8 @@ def create_app():
         return {
             "humanize": humanize,
             "zip": zip,
-            "user": g.user if "user" in g else None,
+            "gh_user": g.gh_user if "gh_user" in g else None,
+            "cern_user": g.cern_user if "cern_user" in g else None,
         }
 
     @app.before_request
@@ -114,17 +132,34 @@ def create_app():
             _is_htmx_var.set(True)
 
     @app.before_request
-    async def recover_login():
-        if "gh_token" not in web_session:
+    async def login_required():
+        if request.endpoint == "static":
             return
+        if (
+            "gh_token" not in web_session or "cern_user" not in web_session
+        ) and request.endpoint not in (
+            "auth.login_github",
+            "auth.login",
+            "auth.github_callback",
+            "auth.cern_login",
+            "auth.cern_callback",
+        ):
+            return redirect(url_for("auth.login"))
 
         if "gh_user" not in web_session:
-            async with aiohttp.ClientSession() as session:
-                gh = GitHubAPI(
-                    session, "apogee", oauth_token=str(web_session["gh_token"])
-                )
-                web_session["gh_user"] = await gh.getitem("/user")
-        g.user = web_session["gh_user"]
+            if "gh_token" not in web_session:
+                g.gh_user = None
+            else:
+                async with aiohttp.ClientSession() as session:
+                    gh = GitHubAPI(
+                        session, "apogee", oauth_token=str(web_session["gh_token"])
+                    )
+                    web_session["gh_user"] = User(**await gh.getitem("/user"))
+                g.gh_user = web_session["gh_user"]
+        else:
+            g.gh_user = web_session["gh_user"]
+
+        g.cern_user = web_session.get("cern_user")
 
     @app.template_filter("datefmt")
     def datefmt(s):
@@ -155,11 +190,8 @@ def create_app():
         raise e
 
     @app.route("/")
-    def index():
-        if hasattr(g, "user") and g.user is not None:
-            return redirect(url_for("timeline.index"))
-
-        return render_template("index.html")
+    async def index():
+        return redirect(url_for("timeline.index"))
 
     @app.route("/reload_pipelines", methods=["POST"])
     @with_gitlab
@@ -325,7 +357,7 @@ def create_app():
         pull = request.args.get("pull")
 
         obj: model.Commit | model.PullRequest
-        render_args = []
+        render_arg = []
         if sha is not None:
             obj = db.get_or_404(model.Commit, sha)
             render_args = {
@@ -638,15 +670,13 @@ def create_app():
             except gidgethub.BadRequest:
                 return False
 
-    @app.route("/login", methods=["GET", "POST"])
-    async def login():
-        return github.authorize()
-
     @app.route("/logout", methods=["POST"])
     def logout():
-        g.user = None
-        del web_session["gh_token"]
-        del web_session["gh_user"]
+        g.gh_user = None
+        g.cern_user = None
+        web_session.pop("gh_token")
+        web_session.pop("gh_user")
+        web_session.pop("cern_user")
         if is_htmx:
             return "", 200, {"HX-Redirect": url_for("index")}
         return redirect(url_for("index"))
@@ -727,14 +757,5 @@ def create_app():
             t.start()
 
         return "ok"
-
-    @app.route("/github-callback")
-    @github.authorized_handler
-    def authorized(oauth_token):
-        next_url = request.args.get("next") or url_for("timeline.index")
-
-        web_session["gh_token"] = oauth_token
-
-        return redirect(next_url)
 
     return app
