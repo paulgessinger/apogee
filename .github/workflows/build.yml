@@ -1,4 +1,4 @@
-me: Build images
+name: Build images
 
 on:
   pull_request:
