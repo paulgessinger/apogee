@@ -157,7 +157,8 @@ def create_app():
             "auth.cern_login",
             "auth.cern_callback",
         ):
-            return redirect(url_for("auth.login"))
+            login_url = url_for("auth.login")
+            return redirect(login_url), 200, {"HX-Redirect": login_url}
 
         if "gh_user" not in web_session:
             if "gh_token" not in web_session:
