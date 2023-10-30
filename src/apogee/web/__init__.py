@@ -35,6 +35,7 @@ import sqlalchemy
 import click
 from authlib.integrations.flask_client import OAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
+from apogee.cli import add_cli
 
 
 from apogee.forms import PatchForm
@@ -95,30 +96,11 @@ def create_app():
     from apogee.web.pulls import bp as pulls_bp
     from apogee.web.auth import bp as auth_bp
 
+    add_cli(app)
+
     app.register_blueprint(timeline_bp)
     app.register_blueprint(pulls_bp)
     app.register_blueprint(auth_bp)
-
-    @app.cli.command("import")
-    @click.argument("path")
-    def _import(path):
-        import json
-
-        with open(path) as f:
-            data = json.load(f)
-
-        for sha, commit in data.items():
-            c = db.session.execute(
-                db.select(model.Commit).filter_by(sha=sha)
-            ).scalar_one()
-            if c is None:
-                print(f"Skipping {sha}")
-                continue
-            c.note = commit["notes"]
-
-            for i, patch in enumerate(commit["patches"]):
-                db.session.add(model.Patch(url=patch, commit=c, order=i))
-        db.session.commit()
 
     @app.context_processor
     def inject_is_htmx():

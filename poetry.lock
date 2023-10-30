@@ -192,6 +192,30 @@ files = [
 ]
 
 [[package]]
+name = "asyncssh"
+version = "2.14.0"
+description = "AsyncSSH: Asynchronous SSHv2 client and server library"
+optional = false
+python-versions = ">= 3.6"
+files = [
+    {file = "asyncssh-2.14.0-py3-none-any.whl", hash = "sha256:1d112a93f926069932fecd9842f206fdd023eb860aea4efc95f92b5e031d7fe0"},
+    {file = "asyncssh-2.14.0.tar.gz", hash = "sha256:e03ef2d131fbb4371b4018718452ce8c735a48edfe0139d2abdce4c187a459c3"},
+]
+
+[package.dependencies]
+cryptography = ">=39.0"
+typing-extensions = ">=3.6"
+
+[package.extras]
+bcrypt = ["bcrypt (>=3.1.3)"]
+fido2 = ["fido2 (>=0.9.2)"]
+gssapi = ["gssapi (>=1.2.0)"]
+libnacl = ["libnacl (>=1.4.2)"]
+pkcs11 = ["python-pkcs11 (>=0.7.0)"]
+pyopenssl = ["pyOpenSSL (>=23.0.0)"]
+pywin32 = ["pywin32 (>=227)"]
+
+[[package]]
 name = "attrs"
 version = "23.1.0"
 description = "Classes Without Boilerplate"
@@ -714,6 +738,41 @@ files = [
     {file = "frozenlist-1.4.0-cp39-cp39-win_amd64.whl", hash = "sha256:6221d84d463fb110bdd7619b69cb43878a11d51cbb9394ae3105d082d5199167"},
     {file = "frozenlist-1.4.0.tar.gz", hash = "sha256:09163bdf0b2907454042edb19f887c6d33806adc71fbd54afc14908bfdc22251"},
 ]
+
+[[package]]
+name = "fsspec"
+version = "2023.10.0"
+description = "File-system specification"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "fsspec-2023.10.0-py3-none-any.whl", hash = "sha256:346a8f024efeb749d2a5fca7ba8854474b1ff9af7c3faaf636a4548781136529"},
+    {file = "fsspec-2023.10.0.tar.gz", hash = "sha256:330c66757591df346ad3091a53bd907e15348c2ba17d63fd54f5c39c4457d2a5"},
+]
+
+[package.extras]
+abfs = ["adlfs"]
+adl = ["adlfs"]
+arrow = ["pyarrow (>=1)"]
+dask = ["dask", "distributed"]
+devel = ["pytest", "pytest-cov"]
+dropbox = ["dropbox", "dropboxdrivefs", "requests"]
+full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "dask", "distributed", "dropbox", "dropboxdrivefs", "fusepy", "gcsfs", "libarchive-c", "ocifs", "panel", "paramiko", "pyarrow (>=1)", "pygit2", "requests", "s3fs", "smbprotocol", "tqdm"]
+fuse = ["fusepy"]
+gcs = ["gcsfs"]
+git = ["pygit2"]
+github = ["requests"]
+gs = ["gcsfs"]
+gui = ["panel"]
+hdfs = ["pyarrow (>=1)"]
+http = ["aiohttp (!=4.0.0a0,!=4.0.0a1)", "requests"]
+libarchive = ["libarchive-c"]
+oci = ["ocifs"]
+s3 = ["s3fs"]
+sftp = ["paramiko"]
+smb = ["smbprotocol"]
+ssh = ["paramiko"]
+tqdm = ["tqdm"]
 
 [[package]]
 name = "gidgethub"
@@ -1444,6 +1503,30 @@ pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
+name = "sshfs"
+version = "2023.10.0"
+description = "SSH Filesystem -- Async SSH/SFTP backend for fsspec"
+optional = false
+python-versions = "*"
+files = [
+    {file = "sshfs-2023.10.0-py3-none-any.whl", hash = "sha256:1f17a702150352479d83ba2cf136485a8e9820e6160b64629dec8fc0e5321df1"},
+    {file = "sshfs-2023.10.0.tar.gz", hash = "sha256:8f63f83dd05511552f3ac9590212888dff70dfd43645615b5c030190d2fe3a2b"},
+]
+
+[package.dependencies]
+asyncssh = ">=2.11.0,<3"
+fsspec = ">=2021.8.1"
+
+[package.extras]
+bcrypt = ["asyncssh[bcrypt]"]
+fido2 = ["asyncssh[fido2]"]
+gssapi = ["asyncssh[gssapi]"]
+libnacl = ["asyncssh[libnacl]"]
+pkcs11 = ["asyncssh[python-pkcs11]"]
+pyopenssl = ["asyncssh[pyopenssl]"]
+pywin32 = ["asyncssh[pywin32]"]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1617,4 +1700,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d2c4e8657c6c6a759ea37a442f0aa69418d9ed36879aac15c6693e136ca56e9e"
+content-hash = "2c008f4c486aa24bc097650913e24499ecaf445d15f59f1c2adc03c112f92c09"

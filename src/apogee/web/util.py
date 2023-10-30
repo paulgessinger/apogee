@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 import functools
 import aiohttp
+import inspect
 
 from flask import session as web_session, redirect, url_for, g
 from gidgethub.aiohttp import GitHubAPI
@@ -53,6 +54,10 @@ def with_github(fn):
 
 
 def with_gitlab(fn):
+    signature = inspect.signature(fn)
+
+    wants_session = "session" in signature.parameters
+
     @functools.wraps(fn)
     @with_session
     async def wrapped(*args, session: aiohttp.ClientSession, **kwargs):
@@ -60,6 +65,8 @@ def with_gitlab(fn):
             session, "username", access_token=config.GITLAB_TOKEN, url=config.GITLAB_URL
         )
         kwargs["gl"] = gl
+        if wants_session:
+            kwargs["session"] = session
         return await fn(*args, **kwargs)
 
     return wrapped
