@@ -128,7 +128,7 @@ def create_app():
 
     @app.before_request
     async def login_required():
-        if request.endpoint in unprotected_endpoints:
+        if request.endpoint in unprotected_endpoints or request.path == "/favicon.ico":
             return
         if (
             "gh_token" not in web_session or "cern_user" not in web_session
@@ -173,17 +173,17 @@ def create_app():
     def render_markdown(s):
         return markdown.markdown(s)
 
-    @app.errorhandler(Exception)
-    def htmx_error_handler(e):
-        if is_htmx:
-            current_app.logger.error("Handling error", exc_info=e)
-            flash(str(e), "danger")
-            return (
-                render_template("notifications.html", swap=True),
-                200,
-                {"HX-Reswap": "none"},
-            )
-        #  raise e
+    #  @app.errorhandler(Exception)
+    #  def htmx_error_handler(e):
+    #  if is_htmx:
+    #  current_app.logger.error("Handling error", exc_info=e)
+    #  flash(str(e), "danger")
+    #  return (
+    #  render_template("notifications.html", swap=True),
+    #  200,
+    #  {"HX-Reswap": "none"},
+    #  )
+    #  #  raise e
 
     @app.route("/")
     async def index():
