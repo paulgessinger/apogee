@@ -1,4 +1,13 @@
-from flask import Blueprint, current_app, render_template, request, session, redirect, url_for, g
+from flask import (
+    Blueprint,
+    current_app,
+    render_template,
+    request,
+    session,
+    redirect,
+    url_for,
+    g,
+)
 from apogee.model import CernUser
 
 from apogee.web import oauth, github
@@ -16,8 +25,10 @@ async def login():
 @bp.route("/login-cern")
 def cern_login():
     redirect_uri = url_for(
-        "auth.cern_callback", next=request.args.get("next"), _external=True,
-        scheme=current_app.config.get("PREFERRED_URL_SCHEME", "http")
+        "auth.cern_callback",
+        next=request.args.get("next"),
+        _external=True,
+        _scheme=current_app.config.get("PREFERRED_URL_SCHEME", "http"),
     )
     return oauth.cern.authorize_redirect(redirect_uri)
 
