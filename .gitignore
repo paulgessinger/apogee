@@ -20,3 +20,4 @@ cache
 .vim
 Session.vim
 db.sqlite
+.mypy_cache

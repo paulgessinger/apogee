@@ -89,8 +89,8 @@ def create_app():
     migrate = Migrate(app, db)
 
     session = Session(app)
-    with app.app_context():
-        session.app.session_interface.db.create_all()
+    #  with app.app_context():
+        #  session.app.session_interface.db.create_all()
 
     from apogee.web.timeline import bp as timeline_bp
     from apogee.web.pulls import bp as pulls_bp
