@@ -18,12 +18,11 @@ depends_on = None
 
 
 def upgrade():
-
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
 
-    if "session" not in tables:
+    if "sessions" not in tables:
         op.create_table(
             "sessions",
             sa.Column("id", sa.Integer(), nullable=False),

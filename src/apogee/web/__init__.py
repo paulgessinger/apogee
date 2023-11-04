@@ -30,7 +30,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from apogee.cli import add_cli
 
 
-from apogee.model.github import  User
+from apogee.model.github import User
 from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
@@ -41,6 +41,7 @@ from apogee.web.util import (
     with_gitlab,
     with_session,
 )
+from apogee.tasks import celery_init_app, handle_pipeline_webhook
 
 
 from apogee import config
@@ -68,6 +69,8 @@ def create_app():
     app.config.from_prefixed_env()
     app.config["SESSION_TYPE"] = "sqlalchemy"
     app.config["SESSION_SQLALCHEMY"] = db
+
+    celery_init_app(app)
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
@@ -664,76 +667,6 @@ def create_app():
             return "", 200, {"HX-Redirect": url_for("index")}
         return redirect(url_for("index"))
 
-    def update_pipeline(payload: Dict[str, Any]):
-        def proc_datetime(s):
-            if s is None:
-                return None
-            date, time, tz = s.split(" ")
-            return f"{date}T{time}{tz}"
-
-        with app.app_context():
-            data = payload["object_attributes"]
-            api_pipeline = Pipeline(
-                id=data["id"],
-                iid=data["iid"],
-                project_id=payload["project"]["id"],
-                sha=data["sha"],
-                ref=data["ref"],
-                status=data["status"],
-                source=data["source"],
-                created_at=proc_datetime(data["created_at"]),
-                updated_at=datetime.now(),
-                web_url=f"{config.GITLAB_URL}/{config.GITLAB_PROJECT}/-/pipelines/{data['id']}",
-                variables={v["key"]: v["value"] for v in data["variables"]},
-            )
-
-            print("Updating pipeline", api_pipeline.id)
-            api_pipeline.jobs = []
-
-            for j in payload["builds"]:
-                api_pipeline.jobs.append(
-                    Job(
-                        id=j["id"],
-                        status=j["status"],
-                        stage=j["stage"],
-                        name=j["name"],
-                        ref=data["ref"],
-                        allow_failure=j["allow_failure"],
-                        created_at=proc_datetime(j["created_at"]),
-                        started_at=proc_datetime(j["started_at"]),
-                        finished_at=proc_datetime(j["finished_at"]),
-                        web_url=f"{config.GITLAB_URL}/{config.GITLAB_PROJECT}/-/jobs/{j['id']}",
-                        failure_reason=j["failure_reason"],
-                    )
-                )
-
-            if "SOURCE_SHA" not in api_pipeline.variables:
-                # can't associate with commit
-                return
-
-            if (
-                db.session.execute(
-                    db.select(model.Commit).filter_by(
-                        sha=api_pipeline.variables["SOURCE_SHA"]
-                    )
-                ).scalar_one_or_none()
-                is None
-            ):
-                # ignore these, we don't care about these commits
-                return
-
-            db_pipeline = model.Pipeline.from_api(api_pipeline)
-            db_pipeline.refreshed_at = datetime.now()
-            db_pipeline = db.session.merge(db_pipeline)
-            db_pipeline.jobs = []
-
-            for job in api_pipeline.jobs:
-                db_job = model.Job.from_api(job)
-                db_job.pipeline_id = db_pipeline.id
-                db.session.merge(db_job)
-
-            db.session.commit()
-
     @app.route("/webhook/gitlab", methods=["POST"])
     @unprotected
     def gitlab_webhook():
@@ -741,10 +674,7 @@ def create_app():
         if body is None:
             return "ok"
         if body.get("object_kind") == "pipeline":
-            return "PIPELINE"
-            #  t = threading.Thread(target=update_pipeline, args=(body,))
-            #  t.start()
-
+            handle_pipeline_webhook.delay(body)
         return "ok"
 
     return app

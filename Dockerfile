@@ -17,11 +17,9 @@ COPY migrations migrations
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
-ENV FLASK_APP=apogee.web:create_app
-ENV FLASK_RUN_PORT=5001
-ENV FLASK_RUN_HOST=0.0.0.0
 ENV TZ=Europe/Zurich
 
+COPY make_celery.py .
 COPY start.sh .
 
 RUN chgrp -R 0 /app && \
