@@ -176,6 +176,11 @@ def create_app():
     #  )
     #  #  raise e
 
+    @app.route("/status")
+    @unprotected
+    def status():
+        return "ok"
+
     @app.route("/")
     async def index():
         return redirect(url_for("timeline.index"))
