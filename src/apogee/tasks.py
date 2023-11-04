@@ -28,6 +28,12 @@ def celery_init_app(app: Flask) -> Celery:
         backend=os.environ["CELERY_RESULT_BACKEND"],
     )
     celery_app.conf.broker_connection_retry_on_startup = True
+
+    celery_app.conf.task_always_eager = (
+        os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1"
+    )
+    celery_app.conf.task_eager_propagates = celery_app.conf.task_always_eager
+
     celery_app.set_default()
     app.extensions["celery"] = celery_app
     return celery_app
@@ -107,5 +113,40 @@ def handle_pipeline_webhook(payload: Dict[str, Any]) -> None:
         db_job = model.Job.from_api(job)
         db_job.pipeline_id = db_pipeline.id
         db.session.merge(db_job)
+
+    db.session.commit()
+
+
+@shared_task(ignore_result=True)
+def handle_job_webhook(payload: Dict[str, Any]) -> None:
+    # we need to already know about this job's pipeline, otherwise it's pointless
+    job = Job(
+        id=payload["build_id"],
+        status=payload["build_status"],
+        stage=payload["build_stage"],
+        name=payload["build_name"],
+        ref=payload["ref"],
+        allow_failure=payload["build_allow_failure"],
+        created_at=proc_datetime(payload["build_created_at"]),
+        started_at=proc_datetime(payload["build_started_at"]),
+        finished_at=proc_datetime(payload["build_finished_at"]),
+        web_url=f"{config.GITLAB_URL}/{config.GITLAB_PROJECT}/-/jobs/{payload['build_id']}",
+        failure_reason=payload["build_failure_reason"],
+    )
+
+    pipeline_id = payload["pipeline_id"]
+    logger.info("Handling job %s for pipeline %s", job.id, pipeline_id)
+
+    if pipeline := db.session.execute(
+        db.select(model.Pipeline).filter_by(id=pipeline_id)
+    ).scalar_one_or_none():
+        pipeline.refreshed_at = datetime.now()
+    else:
+        # ignore these, we don't care about these jobs
+        logger.info("Ignoring job %s", job.id)
+        return
+
+    db_job = model.Job.from_api(job)
+    db.session.merge(db_job)
 
     db.session.commit()

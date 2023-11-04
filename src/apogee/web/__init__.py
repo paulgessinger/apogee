@@ -41,7 +41,7 @@ from apogee.web.util import (
     with_gitlab,
     with_session,
 )
-from apogee.tasks import celery_init_app, handle_pipeline_webhook
+from apogee.tasks import celery_init_app, handle_job_webhook, handle_pipeline_webhook
 
 
 from apogee import config
@@ -680,6 +680,9 @@ def create_app():
             return "ok"
         if body.get("object_kind") == "pipeline":
             handle_pipeline_webhook.delay(body)
+        if body.get("object_kind") == "build":
+            handle_job_webhook.delay(body)
+
         return "ok"
 
     return app
