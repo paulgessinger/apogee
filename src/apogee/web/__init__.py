@@ -1,17 +1,11 @@
-from datetime import datetime, timedelta, timezone, tzinfo
-import copy
-import functools
-import itertools
+from datetime import datetime, timedelta, timezone
 import html
 from contextvars import ContextVar
 import re
 from typing import Any, Dict, List, cast
-from uuid import UUID
 import flask
-import threading
 from flask import (
     abort,
-    current_app,
     flash,
     g,
     render_template,
@@ -25,27 +19,23 @@ from flask_session import Session
 from werkzeug.local import LocalProxy
 import markdown
 from flask_github import GitHub
-from flask_sqlalchemy import SQLAlchemy
 import humanize
 from gidgethub.aiohttp import GitHubAPI
 import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
-import click
 from authlib.integrations.flask_client import OAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
 from apogee.cli import add_cli
 
 
-from apogee.forms import PatchForm
-from apogee.model.github import PullRequest, User
+from apogee.model.github import  User
 from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
 from apogee.web.util import (
-    get_last_pipeline_refresh,
     set_last_pipeline_refresh,
     with_github,
     with_gitlab,
@@ -56,7 +46,7 @@ from apogee.web.util import (
 from apogee import config
 from apogee.util import gather_limit
 
-_is_htmx_var = ContextVar("is_htmx")
+_is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
 
 
@@ -86,11 +76,9 @@ def create_app():
     github.init_app(app)
 
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
 
-    session = Session(app)
-    #  with app.app_context():
-        #  session.app.session_interface.db.create_all()
+    Session(app)
 
     from apogee.web.timeline import bp as timeline_bp
     from apogee.web.pulls import bp as pulls_bp
@@ -195,7 +183,6 @@ def create_app():
         updated_after = datetime.now(tz=timezone.utc) - timedelta(
             days=config.GITLAB_PIPELINES_WINDOW_DAYS
         )
-        #  updated_after = max(updated_after, get_last_pipeline_refresh() or updated_after)
 
         pipelines: List[Pipeline] = []
 
@@ -754,8 +741,9 @@ def create_app():
         if body is None:
             return "ok"
         if body.get("object_kind") == "pipeline":
-            t = threading.Thread(target=update_pipeline, args=(body,))
-            t.start()
+            return "PIPELINE"
+            #  t = threading.Thread(target=update_pipeline, args=(body,))
+            #  t.start()
 
         return "ok"
 
