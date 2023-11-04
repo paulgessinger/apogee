@@ -72,7 +72,7 @@ def create_app():
 
     celery_init_app(app)
 
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
+    #  app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
     oauth.init_app(app)
 
