@@ -1,15 +1,21 @@
 from datetime import datetime
+import logging
 import os
 from typing import Any, Dict
+import aiohttp
 
 from celery import Celery, Task, shared_task
 from celery.utils.log import get_task_logger
 from flask import Flask
 
 from apogee import config
+from apogee.github import get_installation_github
 from apogee.model.db import db
 from apogee.model import db as model
+from apogee.model.github import Commit
 from apogee.model.gitlab import Job, Pipeline
+from apogee.util import coroutine
+from apogee.github import fetch_commits
 
 
 logger = get_task_logger(__name__)
@@ -33,6 +39,9 @@ def celery_init_app(app: Flask) -> Celery:
         os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1"
     )
     celery_app.conf.task_eager_propagates = celery_app.conf.task_always_eager
+
+    if app.debug:
+        logger.setLevel(logging.DEBUG)
 
     celery_app.set_default()
     app.extensions["celery"] = celery_app
@@ -150,3 +159,17 @@ def handle_job_webhook(payload: Dict[str, Any]) -> None:
     db.session.merge(db_job)
 
     db.session.commit()
+
+
+@shared_task(ignore_result=True)
+@coroutine
+async def handle_push(payload: Dict[str, Any]) -> None:
+    head_commit_sha = payload["head_commit"]["id"]
+    repo = payload["repository"]["full_name"]
+
+    logger.info("Handling push %s for repo %s", head_commit_sha, repo)
+
+    async with aiohttp.ClientSession() as session:
+        gh = await get_installation_github(repo, session)
+
+        print(await fetch_commits(gh))

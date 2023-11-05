@@ -3,6 +3,7 @@ from typing import cast
 from flask import Blueprint, render_template, flash, request
 from gidgethub.abc import GitHubAPI
 import sqlalchemy.sql.functions as func
+from apogee.github import fetch_commits
 
 from apogee.web.util import with_github
 from apogee.model.db import db
@@ -53,47 +54,7 @@ def index():
 @bp.route("/reload_commits", methods=["POST"])
 @with_github
 async def reload_commits(gh: GitHubAPI):
-    n_fetched = 0
-
-    # get highest order of commit
-    latest_commit: model.Commit | None = db.session.execute(
-        db.select(model.Commit).order_by(model.Commit.order.desc()).limit(1)
-    ).scalar_one_or_none()
-    latest_order = latest_commit.order if latest_commit is not None else 0
-
-    fetched_commits: list[Commit] = []
-
-    async for data in gh.getiter(f"/repos/{config.REPOSITORY}/commits"):
-        if n_fetched >= config.MAX_COMMITS:
-            break
-
-        api_commit = Commit(**data)
-
-        if latest_commit is not None and api_commit.sha == latest_commit.sha:
-            break
-
-        n_fetched += 1
-        fetched_commits.append(api_commit)
-
-    for index, api_commit in enumerate(reversed(fetched_commits)):
-        author: model.GitHubUser | None = None
-        committer: model.GitHubUser | None = None
-
-        if api_commit.author is not None:
-            author = model.GitHubUser.from_api(api_commit.author)
-            db.session.merge(author)
-
-        if api_commit.committer is not None:
-            committer = model.GitHubUser.from_api(api_commit.committer)
-            db.session.merge(committer)
-
-        commit = model.Commit.from_api(api_commit)
-        commit.author = author
-        commit.committer = committer
-        commit.order = latest_order + index + 1
-        db.session.merge(commit)
-
-    db.session.commit()
+    n_fetched = await fetch_commits(gh)
 
     flash(f"Fetched {n_fetched} commits", "success")
 

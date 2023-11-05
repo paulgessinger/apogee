@@ -27,9 +27,8 @@ import aiohttp
 import sqlalchemy
 from authlib.integrations.flask_client import OAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
+
 from apogee.cli import add_cli
-
-
 from apogee.model.github import User
 from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
@@ -42,7 +41,12 @@ from apogee.web.util import (
     with_gitlab,
     with_session,
 )
-from apogee.tasks import celery_init_app, handle_job_webhook, handle_pipeline_webhook
+from apogee.tasks import (
+    celery_init_app,
+    handle_job_webhook,
+    handle_pipeline_webhook,
+    handle_push,
+)
 
 
 from apogee import config
@@ -685,6 +689,20 @@ def create_app():
             handle_pipeline_webhook.delay(body)
         if body.get("object_kind") == "build":
             handle_job_webhook.delay(body)
+
+        return "ok"
+
+    @app.route("/webhook/github", methods=["POST"])
+    @unprotected
+    def github_webhook():
+        body = request.json
+        event = request.headers.get("X-GitHub-Event")
+
+        if body is None or event is None:
+            return "ok"
+
+        if event == "push":
+            handle_push.delay(body)
 
         return "ok"
 
