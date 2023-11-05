@@ -1,4 +1,5 @@
-{% from "macros.html" import status_to_class %}
+{% from "macros.html" import status_to_class, relative_datetime %}
+
 <div id="pipeline-{{ pipeline.id }}" class="box" x-data="{ expanded: {{ 'true' if expanded else 'false' }} }">
 		<div class="columns">
 			<div class="column">
@@ -18,13 +19,7 @@
 						x-tooltip.raw="{{ pipeline.created_at|datefmt }}">
 					</span>
 					{%- if pipeline.refreshed_at -%}
-					, last updated
-					<span 
-						x-data="{ date: new Date('{{pipeline.refreshed_at.isoformat()}}')  }" 
-						x-timeago="date"
-						x-tooltip.raw="{{ pipeline.refreshed_at|datefmt }}">
-						{{ humanize.naturaltime(pipeline.refreshed_delta) }}
-					</span>
+					, last updated {{ relative_datetime(pipeline.refreshed_at) }}
 					{% endif %}
 				</p>
 			</div>

@@ -34,6 +34,7 @@ from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
+from apogee.web.pulls import pull_index_view
 from apogee.web.timeline import timeline_commits_view
 from apogee.web.util import (
     set_last_pipeline_refresh,
@@ -137,7 +138,7 @@ def create_app():
             "auth.cern_callback",
         ):
             login_url = url_for("auth.login")
-            return redirect(login_url), 302, {"HX-Redirect": login_url}
+            return redirect(login_url), 302, {"HX-Location": login_url}
 
         if "gh_user" not in web_session:
             if "gh_token" not in web_session:
@@ -157,6 +158,11 @@ def create_app():
     @app.template_filter("datefmt")
     def datefmt(s):
         return s.strftime("%Y-%m-%d %H:%M:%S")
+
+    @app.template_filter("datezulu")
+    def datezulu(s):
+        print(s)
+        return s.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @app.template_filter("pr_links")
     def pr_links(s):
@@ -275,7 +281,10 @@ def create_app():
         if source not in ("timeline", "pulls"):
             abort(400)
         flash(f"Fetched {len(pipelines)} pipelines", "success")
-        return timeline_commits_view(frame=False)
+        if source == "timeline":
+            return timeline_commits_view(frame=False)
+        else:
+            return pull_index_view(frame=False)
 
     @app.route("/reload_pipeline/<int:pipeline_id>", methods=["POST"])
     @with_gitlab
@@ -652,7 +661,7 @@ def create_app():
                 "",
                 200,
                 {
-                    "HX-Redirect": url_for(
+                    "HX-Location": url_for(
                         "commit_detail",
                         sha=sha,
                         pull=pr.number if pr is not None else None,
@@ -677,7 +686,7 @@ def create_app():
         web_session.pop("gh_user")
         web_session.pop("cern_user")
         if is_htmx:
-            return "", 200, {"HX-Redirect": url_for("index")}
+            return "", 200, {"HX-Location": url_for("index")}
         return redirect(url_for("index"))
 
     @app.route("/webhook/gitlab", methods=["POST"])

@@ -20,6 +20,7 @@
 			<button class="button"
 						hx-post={{ url_for('timeline.reload_commits') }}
 						hx-target="#commits"
+						{% if page != 1 %}hx-replace-url={{ url_for('timeline.index') }}{% endif %}
 						>
 						<span class="icon">
 							<ion-icon name="logo-github"></ion-icon>
@@ -31,7 +32,7 @@
 		</p>
 	  <p class="control">
 		<button class="button"
-					hx-post={{ url_for('reload_pipelines', source='timeline') }}
+					hx-post={{ url_for('reload_pipelines', source='timeline', page=page) }}
 					hx-target="#commits"
 					>
 						<span class="icon">

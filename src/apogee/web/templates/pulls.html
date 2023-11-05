@@ -31,7 +31,7 @@
 		</p>
 	  <p class="control">
 		<button class="button"
-					hx-post="{{ url_for('reload_pipelines', source='pulls') }}"
+					hx-post="{{ url_for('reload_pipelines', source='pulls', page=page) }}"
 					hx-target="#pulls"
 					>
 						<span class="icon">

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Iterable, List, Tuple, cast
 
-from flask import Blueprint, flash, render_template, request
+from flask import Blueprint, flash, render_template, request, url_for
 from gidgethub.abc import GitHubAPI
 from sqlalchemy.orm import joinedload
 import sqlalchemy.sql.functions as func
@@ -9,8 +9,7 @@ from apogee.github import update_pull_request
 
 from apogee.util import gather_limit
 from apogee.web.util import with_github
-from apogee.web import is_htmx
-from apogee.cache import cache, memoize
+from apogee.cache import memoize
 from apogee.model.github import Commit, PullRequest
 from apogee import config
 from apogee.model.db import PrCommitAssociation, db
@@ -104,13 +103,16 @@ async def reload_pulls(gh: GitHubAPI):
 
     db.session.commit()
 
+    return pull_index_view(frame=False)
+
+
+def pull_index_view(frame: bool) -> str:
     page = int(request.args.get("page", 1))
     per_page = 20
-
     open_pulls, total = get_open_pulls(page, per_page)
 
     return render_template(
-        "pull_list.html",
+        "pulls.html" if frame else "pull_list.html",
         pulls=open_pulls,
         page=page,
         per_page=per_page,
@@ -121,25 +123,12 @@ async def reload_pulls(gh: GitHubAPI):
 @bp.route("/")
 @with_github
 async def index(gh: GitHubAPI):
-    page = int(request.args.get("page", 1))
-    per_page = 20
-    open_pulls, total = get_open_pulls(page, per_page)
-
-    return render_template(
-        "pulls.html",
-        pulls=open_pulls,
-        page=page,
-        per_page=per_page,
-        total=total,
-    )
+    return pull_index_view(frame=True)
 
 
 @bp.route("/<int:number>")
 @with_github
 async def show(gh: GitHubAPI, number: int):
-    #  page = int(request.args.get("page", 1))
-    #  per_page = 20
-    #  open_pulls, total = get_open_pulls(page, per_page)
     pull = db.get_or_404(model.PullRequest, number)
 
     return render_template("single_pull.html", pull=pull)

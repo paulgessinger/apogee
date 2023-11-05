@@ -1,7 +1,7 @@
 {% macro github_user(user) -%}
 	<a href="{{ user.html_url }}" class="">
 		<img class="avatar" src="{{ user.avatar_url }}" />
-		<span>@{{ user.login }}</span></a>
+	<span>@{{ user.login }}</span></a>
 {%- endmacro %}
 
 {% macro status_to_class(status) -%}
@@ -18,4 +18,21 @@
 		{% elif status == 'pending' -%}
 		is-info is-light
 		{%- endif -%}
+{%- endmacro %}
+
+{% macro local_datetime(datetime) -%}
+<span
+x-data="{date: new Date($el.innerText)}"
+	x-text="date.toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})"
+	>{{ datetime|datezulu }}</span
+>
+{%- endmacro %}
+
+{% macro relative_datetime(datetime) -%}
+<span 
+	x-data="{ date: new Date('{{datetime|datezulu}}'), loc: new Date('{{datetime|datezulu}}').toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) }" 
+	x-timeago="date"
+	x-tooltip="loc">
+	{{ datetime|datefmt }}
+</span>
 {%- endmacro %}
