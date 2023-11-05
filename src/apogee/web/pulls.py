@@ -111,6 +111,14 @@ def pull_index_view(frame: bool) -> str:
     per_page = 20
     open_pulls, total = get_open_pulls(page, per_page)
 
+    print("PULL index view")
+    for pr in open_pulls:
+        print(pr.number, pr.title)
+        print("- created_at:", pr.created_at)
+        print("- updated_at:", pr.updated_at)
+        print("- closed_at:", pr.closed_at)
+        print("- merged_at:", pr.merged_at)
+
     return render_template(
         "pulls.html" if frame else "pull_list.html",
         pulls=open_pulls,

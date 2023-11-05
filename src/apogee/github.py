@@ -118,17 +118,6 @@ def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
     )
     db_pr.commits.clear()
 
-    print("Update PR:", pr.number)
-    print("-", pr.created_at)
-    print("-", pr.updated_at)
-    print("-", pr.closed_at)
-    print("-", pr.merged_at)
-    print(" -> DB:")
-    print("-", db_pr.created_at)
-    print("-", db_pr.updated_at)
-    print("-", db_pr.closed_at)
-    print("-", db_pr.merged_at)
-
     for i, commit in enumerate(commits):
         db_commit = model.Commit.from_api(commit)
         db_commit.order = -1
