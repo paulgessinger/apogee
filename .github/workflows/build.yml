@@ -65,7 +65,8 @@ jobs:
     steps:
       - name: Trigger redeploy
         run: >
-          sshpass -p ${{ secrets.PWD }} ssh ${{ secrets.USER }}@lxplus9.cern.ch
-          'oc login ${{ env.SERVER }} --token=${{ secrets.DEPLOY_TOKEN }}
-          && oc project ${{ env.PROJECT }}
-          && oc import-image ${{ env.APP_NAME }} --all'
+          sshpass -p ${{ secrets.PWD }} ssh ${{ secrets.USER }}@lxplus9.cern.ch hostname
+
+          # 'oc login ${{ env.SERVER }} --token=${{ secrets.DEPLOY_TOKEN }}
+          # && oc project ${{ env.PROJECT }}
+          # && oc import-image ${{ env.APP_NAME }} --all'
