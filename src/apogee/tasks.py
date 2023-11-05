@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict
@@ -149,7 +149,7 @@ def handle_job_webhook(payload: Dict[str, Any]) -> None:
     if pipeline := db.session.execute(
         db.select(model.Pipeline).filter_by(id=pipeline_id)
     ).scalar_one_or_none():
-        pipeline.refreshed_at = datetime.now()
+        pipeline.refreshed_at = datetime.now(tz=timezone.utc)
     else:
         # ignore these, we don't care about these jobs
         logger.info("Ignoring job %s", job.id)

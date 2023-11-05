@@ -12,12 +12,7 @@
 					</span>
 				</p>
 				<p class="subtitle is-7">
-					Created
-					<span 
-						x-data="{ date: new Date('{{pipeline.created_at.isoformat()}}')  }" 
-						x-timeago="date"
-						x-tooltip.raw="{{ pipeline.created_at|datefmt }}">
-					</span>
+					Created {{ relative_datetime(pipeline.created_at) }}
 					{%- if pipeline.refreshed_at -%}
 					, last updated {{ relative_datetime(pipeline.refreshed_at) }}
 					{% endif %}

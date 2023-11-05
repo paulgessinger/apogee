@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 
-from pydantic import BaseModel
+from pydantic import BaseModel, AwareDatetime
 
 from apogee.model import CommitHash, URL
 
@@ -78,10 +78,10 @@ class PullRequest(BaseModel):
     state: str
     title: str
     body: str | None
-    created_at: datetime
-    updated_at: datetime
-    closed_at: datetime | None
-    merged_at: datetime | None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    closed_at: AwareDatetime | None
+    merged_at: AwareDatetime | None
     merge_commit_sha: CommitHash | None
     head: Source
     base: Source

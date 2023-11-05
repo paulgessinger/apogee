@@ -262,7 +262,7 @@ def create_app():
                 continue
 
             db_pipeline = model.Pipeline.from_api(pipeline)
-            db_pipeline.refreshed_at = datetime.now()
+            db_pipeline.refreshed_at = datetime.now(tz=timezone.utc)
             db.session.merge(db_pipeline)
 
             db_pipeline.jobs = []
@@ -298,7 +298,7 @@ def create_app():
         await api_pipeline.fetch(gl)
 
         pipeline = model.Pipeline.from_api(api_pipeline)
-        pipeline.refreshed_at = datetime.now()
+        pipeline.refreshed_at = datetime.now(tz=timezone.utc)
         pipeline = db.session.merge(pipeline)
 
         pipeline.jobs = []
