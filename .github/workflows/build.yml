@@ -55,6 +55,8 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    needs:
+      - build
     if: github.ref == 'refs/heads/main'
     container: gitlab-registry.cern.ch/paas-tools/openshift-client:latest
     env:
@@ -65,5 +67,5 @@ jobs:
       - name: Trigger redeploy
         run: >
           oc login $SERVER --token=${{ secrets.DEPLOY_TOKEN }}
-          oc project $PROJECT
-          oc import-image $APP_NAME --all
+          && oc project $PROJECT
+          && oc import-image $APP_NAME --all
