@@ -28,9 +28,10 @@ x-data="{date: new Date($el.innerText)}"
 >
 {%- endmacro %}
 
-{% macro relative_datetime(datetime) -%}
+{% macro relative_datetime(datetime, utc) -%}
+{%- set ds = datetime|datezulu if utc else datetime|datefmt -%}
 <span 
-	x-data="{ date: new Date('{{datetime|datezulu}}'), loc: new Date('{{datetime|datezulu}}').toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) }" 
+	x-data="{ date: new Date('{{ds}}'), loc: new Date('{{ds}}').toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}) }" 
 	x-timeago="date"
 	x-tooltip="loc">
 	{{ datetime|datefmt }}

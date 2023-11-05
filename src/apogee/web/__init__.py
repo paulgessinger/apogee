@@ -157,11 +157,10 @@ def create_app():
 
     @app.template_filter("datefmt")
     def datefmt(s):
-        return s.strftime("%Y-%m-%d %H:%M:%S")
+        return s.strftime("%Y-%m-%dT%H:%M:%S")
 
     @app.template_filter("datezulu")
     def datezulu(s):
-        print(s)
         return s.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @app.template_filter("pr_links")
