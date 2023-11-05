@@ -66,7 +66,7 @@ jobs:
       - name: Trigger redeploy
         run: >
           which sshpass
-          && sshpass -p ${{ secrets.PWD }} ssh -vv ${{ secrets.USER }}@lxplus9.cern.ch hostname
+          && sshpass -p ${{ secrets.PWD }} ssh -o StrictHostKeyChecking=no ${{ secrets.USER }}@lxplus9.cern.ch hostname
 
           # 'oc login ${{ env.SERVER }} --token=${{ secrets.DEPLOY_TOKEN }}
           # && oc project ${{ env.PROJECT }}
