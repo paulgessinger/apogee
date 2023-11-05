@@ -66,6 +66,7 @@ Pipeline will be triggered on <a href="{{ pr.head_repo_html_url }}"><code>{{ pr.
 													 sha=commit.sha if pr is none else none, 
 													 pull=pr.number if pr is not none else none, 
 		                       do_report="0" if do_report else "1", 
+													 toggle="1",
 												   back=request.args["back"]) }}"
 				hx-swap="outerHTML"
 				hx-target="#run_pipeline"

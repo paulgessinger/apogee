@@ -547,6 +547,8 @@ def create_app():
         if sha is None and pull is None:
             abort(404)
 
+        is_toggle = "toggle" in request.args
+
         pr: model.PullRequest | None = None
         if pull is not None:
             pr = db.session.execute(
@@ -607,7 +609,7 @@ def create_app():
 
         if request.method == "GET":
             return render_template(
-                "run_pipeline.html" if not is_htmx else "run_pipeline_inner.html",
+                "run_pipeline.html" if not is_toggle else "run_pipeline_inner.html",
                 commit=trigger_commit,
                 reverts=reverts,
                 patches=patches,
