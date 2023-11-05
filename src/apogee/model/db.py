@@ -192,8 +192,23 @@ class PullRequest(db.Model):
     @classmethod
     def from_api(cls, pull: ApiPullRequest) -> "PullRequest":
         return cls(
-            **pull.dict(exclude={"head", "base", "user", "mergeable"}),
+            **pull.dict(
+                exclude={
+                    "head",
+                    "base",
+                    "user",
+                    "mergeable",
+                    "created_at",
+                    "updated_at",
+                    "closed_at",
+                    "merged_at",
+                }
+            ),
             user_id=pull.user.id,
+            created_at=pull.created_at.replace(tzinfo=None),
+            updated_at=pull.updated_at.replace(tzinfo=None),
+            closed_at=pull.closed_at.replace(tzinfo=None) if pull.closed_at else None,
+            merged_at=pull.merged_at.replace(tzinfo=None) if pull.merged_at else None,
             head_label=pull.head.label,
             head_ref=pull.head.ref,
             head_sha=pull.head.sha,

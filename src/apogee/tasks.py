@@ -190,3 +190,5 @@ async def handle_pull_request(payload: Dict[str, Any]) -> None:
         commits = [Commit(**commit) for commit in commits]
 
     update_pull_request(pr, commits)
+
+    db.session.commit()
