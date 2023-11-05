@@ -150,7 +150,7 @@ async def index(gh: GitHubAPI):
     open_pulls, total = get_open_pulls(page, per_page)
 
     return render_template(
-        "pulls.html" if not is_htmx else "pull_list.html",
+        "pulls.html",
         pulls=open_pulls,
         page=page,
         per_page=per_page,
