@@ -19,5 +19,4 @@ trap teardown EXIT
 workers=${GUNICORN_WORKERS:-4}
 port=${PORT:-5001}
 
-# gunicorn "apogee.web:create_app()" --workers $workers --bind "0.0.0.0:$port"
-flask run -p $port --host 0.0.0.0
+gunicorn "apogee.web:create_app()" --workers $workers --bind "0.0.0.0:$port"

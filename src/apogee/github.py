@@ -130,17 +130,6 @@ def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
 
         db_pr.commits.append(assoc)
 
-    print("Update PR:", pr.number)
-    print("-", pr.created_at)
-    print("-", pr.updated_at)
-    print("-", pr.closed_at)
-    print("-", pr.merged_at)
-    print(" -> DB:")
-    print("-", db_pr.created_at)
-    print("-", db_pr.updated_at)
-    print("-", db_pr.closed_at)
-    print("-", db_pr.merged_at)
-
     db.session.commit()
 
     updated = (
@@ -150,9 +139,3 @@ def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
         .scalars()
         .one_or_none()
     )
-
-    print("From DB:")
-    print("-", updated.created_at)
-    print("-", updated.updated_at)
-    print("-", updated.closed_at)
-    print("-", updated.merged_at)
