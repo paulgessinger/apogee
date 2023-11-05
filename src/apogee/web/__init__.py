@@ -704,7 +704,7 @@ def create_app():
 
         if event == "push":
             handle_push.delay(body)
-        elif event == "pull_request":
+        elif event == "pull_request" and body["action"] in ("opened", "synchronize"):
             handle_pull_request.delay(body)
 
         return "ok"
