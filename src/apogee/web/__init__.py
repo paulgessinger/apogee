@@ -45,6 +45,7 @@ from apogee.tasks import (
     celery_init_app,
     handle_job_webhook,
     handle_pipeline_webhook,
+    handle_pull_request,
     handle_push,
 )
 
@@ -703,6 +704,8 @@ def create_app():
 
         if event == "push":
             handle_push.delay(body)
+        elif event == "pull_request":
+            handle_pull_request.delay(body)
 
         return "ok"
 

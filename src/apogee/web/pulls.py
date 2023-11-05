@@ -5,6 +5,7 @@ from flask import Blueprint, flash, render_template, request
 from gidgethub.abc import GitHubAPI
 from sqlalchemy.orm import joinedload
 import sqlalchemy.sql.functions as func
+from apogee.github import update_pull_request
 
 from apogee.util import gather_limit
 from apogee.web.util import with_github
@@ -94,37 +95,12 @@ async def reload_pulls(gh: GitHubAPI):
         ],
     )
 
-    updated = set()
+    all_commits = [[Commit(**commit) for commit in commits] for commits in all_commits]
 
     for pr, commits in zip(prs, all_commits):
-        for user in (pr.user, pr.head.user, pr.base.user):
-            db.session.merge(model.GitHubUser.from_api(user))
+        update_pull_request(pr, commits)
 
-        updated.add(pr.number)
-
-        db_pr = model.PullRequest.from_api(pr)
-        db.session.merge(db_pr)
-
-        db.session.execute(
-            db.delete(PrCommitAssociation).filter_by(pull_request_number=db_pr.number)
-        )
-        db_pr.commits.clear()
-
-        for i, commit_data in enumerate(commits):
-            commit = Commit(**commit_data)
-
-            db_commit = model.Commit.from_api(commit)
-            db_commit.order = -1
-            db.session.merge(db_commit)
-
-            assoc = PrCommitAssociation(
-                pull_request_number=db_pr.number, commit_sha=commit.sha, order=i
-            )
-            db.session.add(assoc)
-
-            db_pr.commits.append(assoc)
-
-    flash(f"{len(updated)} pull requests updated", "success")
+    flash(f"{len(prs)} pull requests updated", "success")
 
     db.session.commit()
 

@@ -9,10 +9,10 @@ from celery.utils.log import get_task_logger
 from flask import Flask
 
 from apogee import config
-from apogee.github import get_installation_github
+from apogee.github import get_installation_github, update_pull_request
 from apogee.model.db import db
 from apogee.model import db as model
-from apogee.model.github import Commit
+from apogee.model.github import Commit, PullRequest
 from apogee.model.gitlab import Job, Pipeline
 from apogee.util import coroutine
 from apogee.github import fetch_commits
@@ -173,3 +173,20 @@ async def handle_push(payload: Dict[str, Any]) -> None:
         gh = await get_installation_github(repo, session)
 
         print(await fetch_commits(gh))
+
+
+@shared_task(ignore_result=True)
+@coroutine
+async def handle_pull_request(payload: Dict[str, Any]) -> None:
+    pr = PullRequest(**payload["pull_request"])
+    repo = pr.base.repo.full_name
+
+    async with aiohttp.ClientSession() as session:
+        gh = await get_installation_github(repo, session)
+
+        commits = await gh.getitem(
+            f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits"
+        )
+        commits = [Commit(**commit) for commit in commits]
+
+    update_pull_request(pr, commits)

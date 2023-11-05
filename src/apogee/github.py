@@ -10,8 +10,8 @@ import pydantic
 from apogee.cache import cache
 from apogee import config
 from apogee.model import db as model
-from apogee.model.db import db
-from apogee.model.github import Commit
+from apogee.model.db import PrCommitAssociation, db
+from apogee.model.github import Commit, PullRequest
 
 
 class InstallationToken(pydantic.BaseModel):
@@ -104,3 +104,28 @@ async def fetch_commits(gh: gidgethub.abc.GitHubAPI) -> int:
     db.session.commit()
 
     return n_fetched
+
+
+def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
+    for user in (pr.user, pr.head.user, pr.base.user):
+        db.session.merge(model.GitHubUser.from_api(user))
+
+    db_pr = model.PullRequest.from_api(pr)
+    db.session.merge(db_pr)
+
+    db.session.execute(
+        db.delete(PrCommitAssociation).filter_by(pull_request_number=db_pr.number)
+    )
+    db_pr.commits.clear()
+
+    for i, commit in enumerate(commits):
+        db_commit = model.Commit.from_api(commit)
+        db_commit.order = -1
+        db.session.merge(db_commit)
+
+        assoc = PrCommitAssociation(
+            pull_request_number=db_pr.number, commit_sha=commit.sha, order=i
+        )
+        db.session.add(assoc)
+
+        db_pr.commits.append(assoc)
