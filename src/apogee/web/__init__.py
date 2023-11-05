@@ -35,6 +35,7 @@ from apogee.model.gitlab import Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
+from apogee.web.timeline import timeline_commits_view
 from apogee.web.util import (
     set_last_pipeline_refresh,
     with_github,
@@ -269,7 +270,7 @@ def create_app():
         if source not in ("timeline", "pulls"):
             abort(400)
         flash(f"Fetched {len(pipelines)} pipelines", "success")
-        return redirect(url_for(f"{source}.index"))
+        return timeline_commits_view(frame=False)
 
     @app.route("/reload_pipeline/<int:pipeline_id>", methods=["POST"])
     @with_gitlab

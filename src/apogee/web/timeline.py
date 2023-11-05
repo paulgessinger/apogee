@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, flash
-from gidgethub.abc import GitHubAPI
+from typing import cast
 
-from apogee.web import is_htmx
+from flask import Blueprint, render_template, flash, request
+from gidgethub.abc import GitHubAPI
+import sqlalchemy.sql.functions as func
+
 from apogee.web.util import with_github
 from apogee.model.db import db
 from apogee.model import db as model
@@ -11,23 +13,41 @@ from apogee import config
 bp = Blueprint("timeline", __name__, url_prefix="/timeline")
 
 
-@bp.route("/")
-@with_github
-async def index(gh: GitHubAPI):
+def timeline_commits_view(frame: bool) -> str:
+    page = int(request.args.get("page", 1))
+    per_page = 20
+
     commits = (
         db.session.execute(
             db.select(model.Commit)
             .filter(model.Commit.order >= 0)
             .order_by(model.Commit.order.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
         )
         .scalars()
         .all()
     )
 
-    return render_template(
-        "timeline.html" if not is_htmx else "commits.html",
-        commits=commits,
+    total: int = cast(
+        int,
+        db.session.execute(
+            db.select(func.count("*")).where(model.Commit.order >= 0)
+        ).scalar(),
     )
+
+    return render_template(
+        "timeline.html" if frame else "commits.html",
+        commits=commits,
+        page=page,
+        per_page=per_page,
+        total=total,
+    )
+
+
+@bp.route("/")
+def index():
+    return timeline_commits_view(frame=True)
 
 
 @bp.route("/reload_commits", methods=["POST"])
@@ -77,13 +97,4 @@ async def reload_commits(gh: GitHubAPI):
 
     flash(f"Fetched {n_fetched} commits", "success")
 
-    commits = (
-        db.session.execute(db.select(model.Commit).order_by(model.Commit.order.desc()))
-        .scalars()
-        .all()
-    )
-
-    return render_template(
-        "commits.html",
-        commits=commits,
-    )
+    return timeline_commits_view(frame=False)

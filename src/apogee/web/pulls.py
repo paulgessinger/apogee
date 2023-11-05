@@ -37,13 +37,17 @@ class ExtendedPullRequest(PullRequest):
 
 
 def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest], int]:
-    open_pulls: Iterable[model.PullRequest] = db.session.execute(
-        db.select(model.PullRequest)
-        .filter_by(state="open")
-        .order_by(model.PullRequest.updated_at.desc())
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    ).scalars()
+    open_pulls: Iterable[model.PullRequest] = (
+        db.session.execute(
+            db.select(model.PullRequest)
+            .filter_by(state="open")
+            .order_by(model.PullRequest.updated_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        )
+        .scalars()
+        .all()
+    )
 
     total: int = cast(
         int,
