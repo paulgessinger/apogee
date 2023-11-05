@@ -56,8 +56,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    # needs:
-      # - build
+    needs:
+      - build
     env:
       SERVER: https://api.paas.okd.cern.ch
       PROJECT: apogee
