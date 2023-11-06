@@ -18,7 +18,6 @@ from flask_migrate import Migrate
 from flask_session import Session
 from werkzeug.local import LocalProxy
 import markdown
-from flask_github import GitHub
 import humanize
 from gidgethub.aiohttp import GitHubAPI
 import gidgethub
