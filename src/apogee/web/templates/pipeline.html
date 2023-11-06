@@ -46,9 +46,11 @@
 		<div class="block" x-show="expanded" x-collapse>
 			<hr/>
 
+			<div style="overflow-x: scroll;">
 			{% with variables = pipeline.variables %}
 			{% include "variable_table.html" %}
 			{% endwith %}
+			</div>
 
 			<hr/>
 
@@ -56,7 +58,8 @@
 			{{ stage }}
 			{% set jobs = pipeline.jobs|selectattr("stage", "equalto", stage)|list %}
 
-			<span class="tags">
+			<div style="overflow-x:scroll;">
+			<span class="tags mt-1 mb-1">
 				{% for job in jobs|sort(attribute="name") %}
 				<span class="tag {{ status_to_class(job.status) }}"
 				x-tooltip.raw="{{ job.status|upper }}">
@@ -64,6 +67,7 @@
 				</span>
 				{% endfor %}
 			</span>
+			</div>
 			{% endfor %}
 		</div>
 
