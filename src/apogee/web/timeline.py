@@ -1,4 +1,5 @@
 from typing import cast
+import math
 
 from flask import Blueprint, render_template, flash, request
 from gidgethub.abc import GitHubAPI
@@ -42,6 +43,7 @@ def timeline_commits_view(frame: bool) -> str:
         commits=commits,
         page=page,
         per_page=per_page,
+        num_pages=math.ceil(total / per_page),
         total=total,
     )
 

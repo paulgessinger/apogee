@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import math
 from typing import Iterable, List, Tuple, cast
 
 from flask import Blueprint, flash, render_template, request, url_for
@@ -116,6 +116,7 @@ def pull_index_view(frame: bool) -> str:
         pulls=open_pulls,
         page=page,
         per_page=per_page,
+        num_pages=math.ceil(total / per_page),
         total=total,
     )
 

@@ -5,7 +5,6 @@
 {% endwith %}
 
 <nav class="pagination" role="navigation" aria-label="pagination">
-	{% set num_pages = total // per_page + 1 %}
 	<a hx-boost="true" class="pagination-previous {{ 'is-disabled' if page == 1 else '' }}" {% if page > 1 -%}
 		href="{{ url_for('pulls.index', page=page-1) }}"
 		{%- endif %}>Previous</a>
