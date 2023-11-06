@@ -19,24 +19,20 @@ class InstallationToken(pydantic.BaseModel):
     expires_at: datetime.datetime
 
 
-async def get_installation_token(repo: str, session: aiohttp.ClientSession) -> str:
-    key = f"installation_token_{repo}"
+async def get_installation_token(
+    session: aiohttp.ClientSession, installation_id: int
+) -> str:
+    key = f"installation_token_{installation_id}"
     if key in cache:
         return cast(str, cache.get(key))
 
-    jwt = gidgethub.apps.get_jwt(
-        app_id=config.GITHUB_APP_ID, private_key=config.GITHUB_APP_PRIVATE_KEY
-    )
-
     gh = GitHubAPI(session, "herald")
-    installation = await gh.getitem(f"/repos/{repo}/installation", jwt=jwt)
-    installation_id = installation["id"]
 
     response = InstallationToken(
         **await gidgethub.apps.get_installation_access_token(
             gh,
             app_id=config.GITHUB_APP_ID,
-            installation_id=installation_id,
+            installation_id=str(installation_id),
             private_key=config.GITHUB_APP_PRIVATE_KEY,
         )
     )
@@ -54,9 +50,9 @@ async def get_installation_token(repo: str, session: aiohttp.ClientSession) -> s
 
 
 async def get_installation_github(
-    repo: str, session: aiohttp.ClientSession
+    session: aiohttp.ClientSession, installation_id: int
 ) -> GitHubAPI:
-    token = await get_installation_token(repo, session)
+    token = await get_installation_token(session, installation_id)
     return GitHubAPI(session, "apogee", oauth_token=token)
 
 

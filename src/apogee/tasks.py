@@ -164,25 +164,26 @@ def handle_job_webhook(payload: Dict[str, Any]) -> None:
 @shared_task(ignore_result=True)
 @coroutine
 async def handle_push(payload: Dict[str, Any]) -> None:
+    installation_id = payload["installation"]["id"]
     head_commit_sha = payload["head_commit"]["id"]
     repo = payload["repository"]["full_name"]
 
     logger.info("Handling push %s for repo %s", head_commit_sha, repo)
 
     async with aiohttp.ClientSession() as session:
-        gh = await get_installation_github(repo, session)
+        gh = await get_installation_github(session, installation_id)
 
-        print(await fetch_commits(gh))
+        await fetch_commits(gh)
 
 
 @shared_task(ignore_result=True)
 @coroutine
 async def handle_pull_request(payload: Dict[str, Any]) -> None:
+    installation_id = payload["installation"]["id"]
     pr = PullRequest(**payload["pull_request"])
-    repo = pr.base.repo.full_name
 
     async with aiohttp.ClientSession() as session:
-        gh = await get_installation_github(repo, session)
+        gh = await get_installation_github(session, installation_id)
 
         commits = await gh.getitem(
             f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits"
