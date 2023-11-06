@@ -26,7 +26,6 @@ from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
 import sqlalchemy.exc
-from authlib.integrations.flask_client import OAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from apogee.cli import add_cli
@@ -37,6 +36,7 @@ from apogee.model.db import db
 from apogee.model import db as model
 from apogee.web.pulls import pull_index_view
 from apogee.web.timeline import timeline_commits_view
+from apogee.web.auth import oauth
 from apogee.web.util import (
     set_last_pipeline_refresh,
     with_github,
@@ -59,18 +59,6 @@ _is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
 
 
-oauth = OAuth()
-github = GitHub()
-
-oauth.register(
-    name="cern",
-    server_metadata_url=config.CERN_AUTH_METADATA_URL,
-    client_id=config.CERN_AUTH_CLIENT_ID,
-    client_secret=config.CERN_AUTH_CLIENT_SECRET,
-    client_kwargs={"scope": "openid email profile"},
-)
-
-
 def create_app():
     app = flask.Flask(__name__)
 
@@ -83,8 +71,6 @@ def create_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
     oauth.init_app(app)
-
-    github.init_app(app)
 
     db.init_app(app)
     Migrate(app, db)
@@ -145,11 +131,11 @@ def create_app():
             if "gh_token" not in web_session:
                 g.gh_user = None
             else:
-                async with aiohttp.ClientSession() as session:
-                    gh = GitHubAPI(
-                        session, "apogee", oauth_token=str(web_session["gh_token"])
-                    )
-                    web_session["gh_user"] = User(**await gh.getitem("/user"))
+                resp = oauth.github.get("user")
+                resp.raise_for_status()
+                user = User(**resp.json())
+
+                web_session["gh_user"] = user
                 g.gh_user = web_session["gh_user"]
         else:
             g.gh_user = web_session["gh_user"]
@@ -353,8 +339,6 @@ def create_app():
         if number := request.args.get("pull"):
             pull = db.get_or_404(model.PullRequest, int(number))
 
-        print(pull)
-
         return render_template("commit_detail.html", commit=commit, pull=pull)
 
     @app.route("/edit_patches", methods=["GET", "POST"])
@@ -438,8 +422,6 @@ def create_app():
             direction == "down" and idx == len(patches) - 1
         ):
             return "no", 400
-
-        print([(p.url, p.order) for p in patches])
 
         if direction == "up":
             a, b = patches[idx - 1], patches[idx]

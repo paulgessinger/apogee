@@ -9,6 +9,7 @@ from gidgethub.aiohttp import GitHubAPI
 from gidgetlab.aiohttp import GitLabAPI
 
 from apogee import config
+from apogee.web.auth import oauth
 from apogee.model.db import KeyValue, db
 
 
@@ -46,7 +47,8 @@ def with_github(fn):
     @with_session
     @require_login
     async def wrapped(*args, session: aiohttp.ClientSession, **kwargs):
-        gh = GitHubAPI(session, "username", oauth_token=str(web_session["gh_token"]))
+        token = oauth.github.token
+        gh = GitHubAPI(session, "username", oauth_token=token["access_token"])
         kwargs["gh"] = gh
         return await fn(*args, **kwargs)
 

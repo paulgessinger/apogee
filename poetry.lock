@@ -965,20 +965,6 @@ tornado = ["tornado"]
 treq = ["treq (<21)", "twisted[tls]"]
 
 [[package]]
-name = "github-flask"
-version = "3.2.0"
-description = "GitHub extension for Flask microframework"
-optional = false
-python-versions = "*"
-files = [
-    {file = "GitHub-Flask-3.2.0.tar.gz", hash = "sha256:24600b720f698bac10667b76b136995ba7821d884e58b27e2a18ca0e4760c786"},
-]
-
-[package.dependencies]
-Flask = "*"
-requests = "*"
-
-[[package]]
 name = "greenlet"
 version = "3.0.1"
 description = "Lightweight in-process concurrent programming"
@@ -2098,4 +2084,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "4693a40085af4bfe9e6710ac448463a3db9fb5e1ec3d01b501a9b631e1c66818"
+content-hash = "55f1ef9551ba49bc1a3db5f5077cc11d52033a91f181f91f108c7b846ffc549c"
