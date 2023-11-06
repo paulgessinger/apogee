@@ -100,10 +100,4 @@ def github_callback():
     token = oauth.github.authorize_access_token()
     session["gh_token"] = token
 
-    #  resp = oauth.github.get("user", token=token)
-    #  resp.raise_for_status()
-    #  user = User(**resp.json())
-
-    #  session["gh_user"] = user
-
     return redirect(next_url)

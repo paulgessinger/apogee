@@ -182,13 +182,16 @@ async def handle_pull_request(payload: Dict[str, Any]) -> None:
     installation_id = payload["installation"]["id"]
     pr = PullRequest(**payload["pull_request"])
 
-    async with aiohttp.ClientSession() as session:
-        gh = await get_installation_github(session, installation_id)
+    commits: list[Commit] | None = None
 
-        commits = await gh.getitem(
-            f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits"
-        )
-        commits = [Commit(**commit) for commit in commits]
+    if payload["action"] in ("opened", "synchronize"):
+        async with aiohttp.ClientSession() as session:
+            gh = await get_installation_github(session, installation_id)
+
+            pr_commits = await gh.getitem(
+                f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits"
+            )
+            commits = [Commit(**commit) for commit in pr_commits]
 
     update_pull_request(pr, commits)
 

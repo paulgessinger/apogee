@@ -102,7 +102,7 @@ async def fetch_commits(gh: gidgethub.abc.GitHubAPI) -> int:
     return n_fetched
 
 
-def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
+def update_pull_request(pr: PullRequest, commits: list[Commit] | None) -> None:
     for user in (pr.user, pr.head.user, pr.base.user):
         db.session.merge(model.GitHubUser.from_api(user))
 
@@ -112,26 +112,20 @@ def update_pull_request(pr: PullRequest, commits: list[Commit]) -> None:
     db.session.execute(
         db.delete(PrCommitAssociation).filter_by(pull_request_number=db_pr.number)
     )
-    db_pr.commits.clear()
 
-    for i, commit in enumerate(commits):
-        db_commit = model.Commit.from_api(commit)
-        db_commit.order = -1
-        db.session.merge(db_commit)
+    if commits is not None:
+        db_pr.commits.clear()
 
-        assoc = PrCommitAssociation(
-            pull_request_number=db_pr.number, commit_sha=commit.sha, order=i
-        )
-        db.session.add(assoc)
+        for i, commit in enumerate(commits):
+            db_commit = model.Commit.from_api(commit)
+            db_commit.order = -1
+            db.session.merge(db_commit)
 
-        db_pr.commits.append(assoc)
+            assoc = PrCommitAssociation(
+                pull_request_number=db_pr.number, commit_sha=commit.sha, order=i
+            )
+            db.session.add(assoc)
+
+            db_pr.commits.append(assoc)
 
     db.session.commit()
-
-    updated = (
-        db.session.execute(
-            db.select(model.PullRequest).where(model.PullRequest.number == pr.number)
-        )
-        .scalars()
-        .one_or_none()
-    )
