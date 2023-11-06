@@ -83,8 +83,8 @@ class Commit(db.Model):
             message=commit.commit.message,
             commit_author=commit.commit.author.name,
             commit_committer=commit.commit.committer.name,
-            committed_date=commit.commit.committer.date,
-            authored_date=commit.commit.author.date,
+            committed_date=commit.commit.committer.date.replace(tzinfo=None),
+            authored_date=commit.commit.author.date.replace(tzinfo=None),
         )
 
     @property
@@ -293,8 +293,8 @@ class Pipeline(db.Model):
             ref=pipeline.ref,
             status=pipeline.status,
             source=pipeline.source,
-            created_at=pipeline.created_at,
-            updated_at=pipeline.updated_at,
+            created_at=pipeline.created_at.replace(tzinfo=None),
+            updated_at=pipeline.updated_at.replace(tzinfo=None),
             web_url=pipeline.web_url,
             variables=pipeline.variables,
         )
@@ -325,9 +325,11 @@ class Job(db.Model):
             name=job.name,
             ref=job.ref,
             allow_failure=job.allow_failure,
-            created_at=job.created_at,
-            started_at=job.started_at,
-            finished_at=job.finished_at,
+            created_at=job.created_at.replace(tzinfo=None),
+            started_at=job.started_at.replace(tzinfo=None) if job.started_at else None,
+            finished_at=job.finished_at.replace(tzinfo=None)
+            if job.finished_at
+            else None,
             web_url=job.web_url,
             failure_reason=job.failure_reason,
         )
