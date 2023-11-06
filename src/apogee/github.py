@@ -107,14 +107,14 @@ def update_pull_request(pr: PullRequest, commits: list[Commit] | None) -> None:
         db.session.merge(model.GitHubUser.from_api(user))
 
     db_pr = model.PullRequest.from_api(pr)
-    db.session.merge(db_pr)
 
-    db.session.execute(
-        db.delete(PrCommitAssociation).filter_by(pull_request_number=db_pr.number)
-    )
+    db.session.merge(db_pr)
 
     if commits is not None:
         db_pr.commits.clear()
+        db.session.execute(
+            db.delete(PrCommitAssociation).filter_by(pull_request_number=db_pr.number)
+        )
 
         for i, commit in enumerate(commits):
             db_commit = model.Commit.from_api(commit)
