@@ -25,6 +25,7 @@ import gidgethub
 from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
+import sqlalchemy.exc
 from authlib.integrations.flask_client import OAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -649,11 +650,17 @@ def create_app():
 
             await pipeline.fetch(gl)
 
-            db_pipeline = model.Pipeline.from_api(pipeline)
-            db_pipeline.commit = trigger_commit
-            db_pipeline.refreshed_at = datetime.now()
-            db.session.add(db_pipeline)
-            db.session.commit()
+            try:
+                db_pipeline = model.Pipeline.from_api(pipeline)
+                db_pipeline.commit = trigger_commit
+                db_pipeline.refreshed_at = datetime.now()
+                db.session.add(db_pipeline)
+                db.session.commit()
+            except sqlalchemy.exc.IntegrityError:
+                # This can happen because we'll concurrently get webhooks
+                # for the same pipeline
+                # It should result in the same DB state
+                pass
 
             flash(f"Pipeline started: #{pipeline.id}", "success")
             return (
