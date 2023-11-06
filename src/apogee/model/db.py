@@ -95,7 +95,7 @@ class Commit(db.Model):
     def latest_pipeline(self) -> Optional["Pipeline"]:
         session = Session.object_session(self)
         assert session is not None
-        # @TODO: Inefficient
+        # @TODO: Refactor: slow
         return (
             session.execute(
                 select(Pipeline)
@@ -235,7 +235,7 @@ class PullRequest(db.Model):
 
     @property
     def latest_pipeline(self) -> Optional["Pipeline"]:
-        # @TODO: Slooooooww
+        # @TODO: Refactor: slow
         for commit in sorted(self.commits, key=lambda x: x.order):
             if pipeline := commit.commit.latest_pipeline:
                 return pipeline
