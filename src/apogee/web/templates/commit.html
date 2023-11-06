@@ -24,7 +24,7 @@
 				</p>
 				{% endif %}
 				<p class="control">
-					<a class="button is-primary" 
+					<a class="button is-primary" hx-boost="true"
 						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if pull else none) }}">
 						<span class="icon">
 							<ion-icon name="rocket"></ion-icon>
@@ -34,8 +34,8 @@
 
 				{% if request.endpoint != "commit_detail" %}
 				<p class="control">
-					<a class="button is-light"
-				href="{{ url_for("commit_detail", sha=commit.sha) }}">
+					<a class="button is-light" hx-boost="true"
+						href="{{ url_for("commit_detail", sha=commit.sha) }}">
 						<span class="icon">
 							<ion-icon name="information-circle"></ion-icon>
 						</span>

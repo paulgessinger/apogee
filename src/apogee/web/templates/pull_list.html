@@ -47,7 +47,7 @@
 				{% endif %}
 
 				<p class="control">
-					<a class="button is-primary" 
+					<a class="button is-primary" hx-boost="true"
 						href="{{ url_for('run_pipeline', pull=pull.number, back=request.url) }}">
 						<span class="icon">
 							<ion-icon name="rocket"></ion-icon>
@@ -56,7 +56,7 @@
 				</p>
 
 				<p class="control">
-					<a class="button is-light"
+					<a class="button is-light" hx-boost="true"
 						href="{{ url_for('pulls.show', number=pull.number) }}">
 						<span class="icon">
 							<ion-icon name="information-circle"></ion-icon>
@@ -78,7 +78,7 @@
 			 is-light
 			 {%- endif %}"
 					x-tooltip.raw="{{ assoc.commit.sha }}">
-					<a href="{{ url_for('commit_detail', sha=assoc.commit.sha, pull=pull.number) }}">{{ assoc.commit.sha[:9] }}</a>
+					<a href="{{ url_for('commit_detail', sha=assoc.commit.sha, pull=pull.number) }}" hx-boost="true">{{ assoc.commit.sha[:9] }}</a>
 				</span>
 			{#{{ assoc.commit_sha }} - {{ assoc.commit.subject }} - {{ assoc.order }}<br>#}
 	{% endfor %}
