@@ -1,6 +1,6 @@
 from datetime import datetime
 from gidgetlab.abc import GitLabAPI
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from apogee.model import CommitHash
 
@@ -12,9 +12,9 @@ class Job(BaseModel):
     name: str
     ref: str
     allow_failure: bool
-    created_at: datetime
-    started_at: datetime | None
-    finished_at: datetime | None
+    created_at: AwareDatetime
+    started_at: AwareDatetime | None
+    finished_at: AwareDatetime | None
     web_url: str
     failure_reason: str | None = None
 
@@ -27,8 +27,8 @@ class Pipeline(BaseModel):
     ref: str
     status: str
     source: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
     web_url: str
 
     jobs: list[Job] = Field(default_factory=list)

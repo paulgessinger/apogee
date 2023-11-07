@@ -48,11 +48,11 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
-def proc_datetime(s: str) -> str | None:
+def proc_datetime(s: str) -> datetime | None:
     if s is None:
         return None
-    date, time, tz = s.split(" ")
-    return f"{date}T{time}{tz}"
+    d = datetime.strptime(s, "%Y-%m-%d %H:%M:%S %z")
+    return d.astimezone(tz=timezone.utc)
 
 
 @shared_task(ignore_result=True)
@@ -67,7 +67,7 @@ def handle_pipeline_webhook(payload: Dict[str, Any]) -> None:
         status=data["status"],
         source=data["source"],
         created_at=proc_datetime(data["created_at"]),
-        updated_at=datetime.now(),
+        updated_at=datetime.now(tz=timezone.utc),
         web_url=f"{config.GITLAB_URL}/{config.GITLAB_PROJECT}/-/pipelines/{data['id']}",
         variables={v["key"]: v["value"] for v in data["variables"]},
     )
@@ -114,7 +114,7 @@ def handle_pipeline_webhook(payload: Dict[str, Any]) -> None:
         return
 
     db_pipeline = model.Pipeline.from_api(api_pipeline)
-    db_pipeline.refreshed_at = datetime.now()
+    db_pipeline.refreshed_at = datetime.now(tz=timezone.utc)
     db_pipeline = db.session.merge(db_pipeline)
     db_pipeline.jobs = []
 
