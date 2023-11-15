@@ -15,8 +15,7 @@
 {% endblock %}
 
 {% block main_column %}
-<div class="field is-grouped">
-	  <p class="control">
+<div class="buttons">
 			<button class="button"
 						hx-post={{ url_for('timeline.reload_commits') }}
 						hx-target="#commits"
@@ -29,8 +28,7 @@
 						Reload commits 
 							</span>
 			</button>
-		</p>
-	  <p class="control">
+
 		<button class="button"
 					hx-post={{ url_for('reload_pipelines', source='timeline', page=page) }}
 					hx-target="#commits"
@@ -42,8 +40,7 @@
 					Reload pipelines
 						</span>
 		</button>
-		</p>
-	  <p class="control">
+
 		<button class="button is-danger is-outlined"
 					hx-post={{ url_for('reset_reverts') }}
 					hx-target="#commits"
@@ -54,8 +51,7 @@
 					</span>
 					<span>Reset reverts</span>
 		</button>
-		</p>
-	  <p class="control">
+
 		<button class="button is-danger is-outlined"
 					hx-post={{ url_for('reset_patches') }}
 					hx-target="#commits"
@@ -66,7 +62,14 @@
 					</span>
 					<span>Reset patches</span>
 		</button>
-		</p>
+
+		<a class="button"
+					href={{ url_for('sync_patches') }}
+					>
+							<span>
+						Sync patches
+						</span>
+		</a>
 </div>
 
 

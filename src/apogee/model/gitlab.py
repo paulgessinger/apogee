@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 from gidgetlab.abc import GitLabAPI
 from pydantic import AwareDatetime, BaseModel, Field
 
@@ -54,3 +55,13 @@ class Pipeline(BaseModel):
     @property
     def last_refreshed_delta(self):
         return datetime.now() - self.last_refreshed_at
+
+
+class CompareResult(BaseModel):
+    class Commit(BaseModel):
+        id: str
+        short_id: str
+        title: str
+        message: str
+
+    commits: List[Commit]

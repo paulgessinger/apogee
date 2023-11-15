@@ -29,7 +29,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from apogee.cli import add_cli
 from apogee.model.github import User
-from apogee.model.gitlab import Job, Pipeline
+from apogee.model.gitlab import CompareResult, Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
 from apogee.model import db as model
@@ -330,6 +330,71 @@ def create_app():
         db.session.execute(sqlalchemy.delete(model.Patch))
         db.session.commit()
         return "", 200, {"HX-Refresh": "true"}
+
+    @app.route("/sync_patches", methods=["GET", "POST"])
+    @with_gitlab
+    async def sync_patches(gl: GitLabAPI):
+        # find commits
+        url = (
+            f"/projects/{config.GITLAB_CANARY_PROJECT_ID}/repository/compare"
+            + f"?from=main&to={config.GITLAB_CANARY_BRANCH}"
+        )
+        result = CompareResult(**await gl.getitem(url))
+
+        pairs: list[tuple[CompareResult.Commit, model.Commit, str]] = []
+
+        patterns = [
+            r"#(\d+)",
+            rf"https://github.com/{config.REPOSITORY}/pull/(\d+)",
+        ]
+        for commit in result.commits:
+            pr_number = None
+            for pat in patterns:
+                if m := re.search(pat, commit.title):
+                    pr_number = int(m.group(1))
+                    break
+            if pr_number is None:
+                continue
+
+            stmnt = db.select(model.Commit).where(
+                model.Commit.message.contains(f"(#{pr_number})")
+            )
+            commits = db.session.execute(stmnt).scalars().all()
+            target_commit = None
+            for db_commit in commits:
+                if db_commit.subject.endswith(f"(#{pr_number})"):
+                    target_commit = db_commit
+                    break
+            if target_commit is None:
+                print("Could not find target commit")
+                continue
+
+            patch_url = (
+                f"{config.GITLAB_URL}/{config.GITLAB_CANARY_PROJECT}/"
+                + f"-/commit/{commit.id}.patch"
+            )
+
+            pairs.append((commit, target_commit, patch_url))
+
+        if request.method == "GET":
+            return render_template("sync_patches.html", pairs=pairs)
+        elif request.method == "POST":
+            # clear all patches for this
+            db.session.execute(sqlalchemy.delete(model.Patch))
+
+            for commit, target_commit, patch_url in pairs:
+                patch = model.Patch(
+                    url=patch_url, commit_sha=target_commit.sha, order=0
+                )
+                db.session.add(patch)
+                target_commit.patches.append(patch)
+
+            db.session.commit()
+            return (
+                redirect(url_for("timeline.index")),
+                200,
+                {"HX-Location": url_for("timeline.index")},
+            )
 
     @app.route("/commit/<sha>")
     async def commit_detail(sha: str) -> str:
