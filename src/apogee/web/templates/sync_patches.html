@@ -1,0 +1,31 @@
+{% extends "single_column.html" %}
+
+{% block main_column %}
+<p class="title">
+	Sync patches
+</p>
+
+{% for patch_commit, commit, url in pairs %}
+
+
+{% with commit=commit, expanded=False %}
+{% include "commit_title.html" %}
+{% endwith %}
+
+Patch commit: <strong>"{{ patch_commit.title }}"</strong><br>
+<a href="{{ url }}"><code>{{ url }}</code></a>
+
+<hr>
+{% endfor %}
+
+
+<p class="control">
+	<button class="button is-primary" hx-post={{ request.url }}>
+		<span class="icon">
+			<ion-icon name="rocket"></ion-icon>
+		</span>
+		<span>Execute</span>
+	</button>
+</p>
+
+{% endblock %}
