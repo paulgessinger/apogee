@@ -61,7 +61,10 @@ async def update_references(
             rf"Checking for reference override at {os.environ['OVERRIDE_BASE_URL']}/q(\d+)/v(\d+)/myAOD.pool.root",
             trace,
         )
-        assert m is not None, "Could not find reference override in trace"
+        if m is None:
+            print("Could not find reference override in trace, skipping this job")
+            continue
+
         qtest, version = m.groups()
 
         print(f"Job was running q{qtest} and version v{version} of references")
