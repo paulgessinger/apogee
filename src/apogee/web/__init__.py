@@ -25,6 +25,7 @@ from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
 import sqlalchemy.exc
+import sqlalchemy.sql.functions as func
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from apogee.cli import add_cli
@@ -632,6 +633,10 @@ def create_app():
         reverts = []
         patches: List[model.Patch] = []
 
+        num_total_patches = (
+            db.session.execute(db.select(func.count(model.Patch.id))).scalars().first()
+        )
+
         for commit in commits:
             #  print(commit.sha, commit.committed_date, commit.subject)
             if commit.revert:
@@ -665,6 +670,9 @@ def create_app():
 
         if len(patches) > 0:
             variables["PATCH_URLS"] = ",".join(p.url for p in patches)
+
+        # Have patches, so no canary
+        if num_total_patches > 0:
             variables["NO_CANARY"] = "1"
 
         if request.method == "GET":
