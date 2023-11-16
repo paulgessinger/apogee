@@ -280,7 +280,7 @@ class Pipeline(db.Model):
 
     @property
     def refreshed_delta(self):
-        return datetime.datetime.now() - self.refreshed_at
+        return datetime.datetime.utcnow() - self.refreshed_at
 
     @classmethod
     def from_api(cls, pipeline: ApiPipeline) -> "Pipeline":

@@ -707,7 +707,7 @@ def create_app():
             try:
                 db_pipeline = model.Pipeline.from_api(pipeline)
                 db_pipeline.commit = trigger_commit
-                db_pipeline.refreshed_at = datetime.now(tz=timezone.utc)
+                db_pipeline.refreshed_at = datetime.utcnow()
                 db.session.add(db_pipeline)
                 db.session.commit()
             except sqlalchemy.exc.IntegrityError:
