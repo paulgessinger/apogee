@@ -1,0 +1,51 @@
+{% from "macros.html" import status_to_class %}
+
+{% extends "single_column.html" %}
+
+{% block main_column %}
+
+<h1 class="title">Update references</h1>
+
+Will update:
+
+<table class="table is-fullwidth">
+	<thead>
+		<tr>
+			<th>Job</th>
+			<th>qtest</th>
+			<th>version</th>
+		</tr>
+	</thead>
+	<tbody>
+{% for job, qtest, version in refs %}
+	<tr>
+		<td>
+			<span class="tag {{ status_to_class(job.status) }}">
+			{{ job.name }}
+			</span>
+		</td>
+		<td>q{{ qtest }}</td>
+		<td>v{{ version }}</td>
+	</tr>
+{% endfor %}
+	</tbody>
+</table>
+
+<hr/>
+
+{% with pipeline = pipeline, expanded=True %}
+	{% include "pipeline.html" %}
+{% endwith %}
+
+<div id="trace">
+<p class="control">
+	<button class="button is-primary" hx-post={{ request.url }} hx-target="#trace">
+		<span class="icon">
+			<ion-icon name="rocket"></ion-icon>
+		</span>
+		<span>Execute</span>
+	</button>
+</p>
+</div>
+
+{% endblock %}
