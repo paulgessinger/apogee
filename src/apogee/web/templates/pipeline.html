@@ -19,22 +19,25 @@
 				</p>
 			</div>
 			<div class="column is-narrow">
-				<div class="field is-grouped">
-					<p class="control" x-data="{ clicked: false }">
-						<button class="button" 
-							:class="clicked ? 'is-loading' : ''"
-							x-on:click="clicked = true"
-							hx-post="{{ url_for("reload_pipeline", pipeline_id=pipeline.id) }}"
-			 				hx-swap="outerHTML"
-							hx-target="#pipeline-{{ pipeline.id }}"
-							>
-							<span class="icon"><ion-icon name="refresh-outline"></ion-icon></span>
-							<span>Reload</span>
-						</button>
-					</p>
-					<p class="control">
-						<button class="button" @click="expanded = !expanded" x-html=" expanded ? 'Less' : 'More'"></button>
-					</p>
+				<div class="buttons">
+					<button class="button" 
+						:class="clicked ? 'is-loading' : ''"
+						x-on:click="clicked = true"
+						hx-post="{{ url_for("reload_pipeline", pipeline_id=pipeline.id) }}"
+						hx-swap="outerHTML"
+						hx-target="#pipeline-{{ pipeline.id }}"
+						>
+						<span class="icon"><ion-icon name="refresh-outline"></ion-icon></span>
+					</button>
+
+					<a href="{{ url_for('update_references', pipeline_id=pipeline.id, next=request.url) }}" class="button is-primary is-light" 
+						hx-boost="true"
+						>
+						<span class="icon"><ion-icon name="arrow-up-circle-outline"></ion-icon></span>
+						<span>Refs</span>
+					</a>
+
+					<button class="button" @click="expanded = !expanded" x-html=" expanded ? 'Less' : 'More'"></button>
 				</div>
 			</div>
 		</div>

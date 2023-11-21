@@ -16,6 +16,7 @@ from flask import (
 )
 from flask_migrate import Migrate
 from flask_session import Session
+from webdav4.fsspec import WebdavFileSystem
 from werkzeug.local import LocalProxy
 import markdown
 import humanize
@@ -28,7 +29,7 @@ import sqlalchemy.exc
 import sqlalchemy.sql.functions as func
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from apogee.cli import add_cli
+from apogee.cli import add_cli, update_references
 from apogee.model.github import User
 from apogee.model.gitlab import CompareResult, Job, Pipeline
 from apogee.model.record import Patch
@@ -53,7 +54,12 @@ from apogee.tasks import (
 
 
 from apogee import config
-from apogee.util import gather_limit
+from apogee.util import (
+    execute_reference_update,
+    gather_limit,
+    get_pipeline_references,
+    parse_pipeline_url,
+)
 
 _is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
@@ -271,6 +277,46 @@ def create_app():
             return timeline_commits_view(frame=False)
         else:
             return pull_index_view(frame=False)
+
+    @app.route("/update_references/<int:pipeline_id>", methods=["GET", "POST"])
+    @with_gitlab
+    @with_session
+    async def update_references(
+        session: aiohttp.ClientSession, gl: GitLabAPI, pipeline_id: int
+    ):
+        pipeline = db.get_or_404(model.Pipeline, pipeline_id)
+
+        owner, repo, _ = parse_pipeline_url(pipeline.web_url)
+
+        refs = await get_pipeline_references(gl, owner, repo, pipeline.id)
+        print(refs)
+
+        if request.method == "GET":
+            return render_template(
+                "update_references.html", pipeline=pipeline, refs=refs
+            )
+        else:
+            eos = WebdavFileSystem(
+                "https://cernbox.cern.ch/cernbox/webdav/",
+                auth=(config.EOS_USER_NAME, config.EOS_USER_PWD),
+            )
+
+            assert eos.exists(
+                config.EOS_BASE_PATH
+            ), f"{config.EOS_BASE_PATH} does not exist"
+
+            trace = ""
+            for job, qtest, version in await get_pipeline_references(
+                gl, owner, repo, pipeline_id
+            ):
+                trace += "\n" + await execute_reference_update(
+                    session, gl, eos, owner, repo, job, qtest, version, dry_run=True
+                )
+
+            trace += "\nDone"
+            print(trace)
+
+            return render_template("update_reference_trace.html", trace=trace)
 
     @app.route("/reload_pipeline/<int:pipeline_id>", methods=["POST"])
     @with_gitlab
