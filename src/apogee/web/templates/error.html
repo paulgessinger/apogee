@@ -1,8 +1,8 @@
-<article class="message is-danger">
-  <div class="message-header">
-    <p>Error</p>
-  </div>
-  <div class="message-body">
-		{{ error }}
-  </div>
-</article>
+{% extends "single_column.html" %}
+
+{% block notifications %}
+{% endblock %}
+
+{% block main_column %}
+{% include "notifications.html" %}
+{% endblock %}

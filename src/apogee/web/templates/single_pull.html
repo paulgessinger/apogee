@@ -16,6 +16,8 @@
 
 {% block main_column %}
 
-PR!
+{% with pull = pull %}
+{% include "pull_row.html" %}
+{% endwith %}
 
 {% endblock %}

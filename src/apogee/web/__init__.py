@@ -18,6 +18,7 @@ from flask_migrate import Migrate
 from flask_session import Session
 from webdav4.fsspec import WebdavFileSystem
 from werkzeug.local import LocalProxy
+import html
 import markdown
 import humanize
 from gidgethub.aiohttp import GitHubAPI
@@ -664,7 +665,14 @@ def create_app():
             assert pr is not None
             sha = pr.head_sha
 
-        trigger_commit = db.get_or_404(model.Commit, sha)
+        trigger_commit: model.Commit | None = db.session.execute(
+            db.select(model.Commit).where(model.Commit.sha == sha)
+        ).scalar_one_or_none()
+
+        if trigger_commit is None:
+            flash(f"Commit <code>{html.escape(sha)}</code> not found", "danger")
+            code = 200 if "HX-Request" in request.headers else 404
+            return render_template("error.html"), code
 
         # @TODO: In pull case take all of main branch
         commit_select = db.select(model.Commit).order_by(model.Commit.order.desc())
