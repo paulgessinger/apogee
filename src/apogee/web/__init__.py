@@ -17,6 +17,7 @@ from flask import (
 from flask_migrate import Migrate
 from flask_session import Session
 from webdav4.fsspec import WebdavFileSystem
+import redis
 from werkzeug.local import LocalProxy
 import html
 import markdown
@@ -70,8 +71,11 @@ def create_app():
     app = flask.Flask(__name__)
 
     app.config.from_prefixed_env()
-    app.config["SESSION_TYPE"] = "sqlalchemy"
-    app.config["SESSION_SQLALCHEMY"] = db
+    app.config.setdefault("SESSION_TYPE", "sqlalchemy")
+    if app.config["SESSION_TYPE"] == "sqlalchemy":
+        app.config["SESSION_SQLALCHEMY"] = db
+    elif app.config["SESSION_TYPE"] == "redis":
+        app.config["SESSION_REDIS"] = redis.from_url(config.SESSION_REDIS_URL)
 
     celery_init_app(app)
 

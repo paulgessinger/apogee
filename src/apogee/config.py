@@ -35,3 +35,5 @@ GITHUB_CLIENT_ID = os.environ["GITHUB_CLIENT_ID"]
 EOS_BASE_PATH = os.environ["EOS_BASE_PATH"]
 EOS_USER_NAME = os.environ["EOS_USER_NAME"]
 EOS_USER_PWD = os.environ["EOS_USER_PWD"]
+
+SESSION_REDIS_URL = os.environ.get("SESSION_REDIS_URL")
