@@ -236,7 +236,7 @@ class PullRequest(db.Model):
     @property
     def latest_pipeline(self) -> Optional["Pipeline"]:
         # @TODO: Refactor: slow
-        for commit in sorted(self.commits, key=lambda x: x.order):
+        for commit in sorted(self.commits, key=lambda x: x.order, reverse=True):
             if pipeline := commit.commit.latest_pipeline:
                 return pipeline
 
