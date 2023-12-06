@@ -138,17 +138,18 @@ def create_app():
             login_url = url_for("auth.login")
             return redirect(login_url), 302, {"HX-Location": login_url}
 
-        # check token validity
-        now = datetime.now(tz=timezone.utc).timestamp()
-        if now > web_session["gh_token"]["expires_at"]:
-            if now > web_session["gh_token"]["refresh_expires_at"]:
-                # log out from github
-                web_session.pop("gh_token")
-                login_url = url_for("auth.login")
-                return redirect(login_url), 302, {"HX-Location": login_url}
+        if "gh_token" in web_session:
+            # check token validity
+            now = datetime.now(tz=timezone.utc).timestamp()
+            if now > web_session["gh_token"]["expires_at"]:
+                if now > web_session["gh_token"]["refresh_expires_at"]:
+                    # log out from github
+                    web_session.pop("gh_token")
+                    login_url = url_for("auth.login")
+                    return redirect(login_url), 302, {"HX-Location": login_url}
 
-            # I **think** this should referesh the token?
-            oauth.github.get("user")
+                # I **think** this should referesh the token?
+                oauth.github.get("user")
 
         if "gh_user" not in web_session:
             if "gh_token" not in web_session:
