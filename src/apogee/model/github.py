@@ -87,3 +87,13 @@ class PullRequest(BaseModel):
     base: Source
 
     mergeable: bool | None = None
+
+
+class CompareResponse(BaseModel):
+    url: str
+    total_commits: int
+    status: str
+    ahead_by: int
+    behind_by: int
+
+    commits: list[Commit]

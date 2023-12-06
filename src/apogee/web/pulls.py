@@ -10,7 +10,7 @@ from apogee.github import update_pull_request
 from apogee.util import gather_limit
 from apogee.web.util import with_github
 from apogee.cache import memoize
-from apogee.model.github import Commit, PullRequest
+from apogee.model.github import Commit, CompareResponse, PullRequest
 from apogee import config
 from apogee.model.db import PrCommitAssociation, db
 from apogee.model import db as model
@@ -86,15 +86,17 @@ async def reload_pulls(gh: GitHubAPI):
         )
     ]
 
-    all_commits = await gather_limit(
+    all_compare = await gather_limit(
         15,
         *[
-            gh.getitem(f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits")
+            gh.getitem(
+                f"/repos/{config.REPOSITORY}/compare/{pr.base.sha}...{pr.head.sha}"
+            )
             for pr in prs
         ],
     )
 
-    all_commits = [[Commit(**commit) for commit in commits] for commits in all_commits]
+    all_commits = [CompareResponse(**compare).commits for compare in all_compare]
 
     for pr, commits in zip(prs, all_commits):
         update_pull_request(pr, commits)

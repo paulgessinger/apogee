@@ -12,7 +12,7 @@ from apogee import config
 from apogee.github import get_installation_github, update_pull_request
 from apogee.model.db import db
 from apogee.model import db as model
-from apogee.model.github import Commit, PullRequest
+from apogee.model.github import Commit, CompareResponse, PullRequest
 from apogee.model.gitlab import Job, Pipeline
 from apogee.util import coroutine
 from apogee.github import fetch_commits
@@ -182,17 +182,17 @@ async def handle_pull_request(payload: Dict[str, Any]) -> None:
     installation_id = payload["installation"]["id"]
     pr = PullRequest(**payload["pull_request"])
 
-    commits: list[Commit] | None = None
-
+    pr_compare: CompareResponse | None = None
     if payload["action"] in ("opened", "synchronize"):
         async with aiohttp.ClientSession() as session:
             gh = await get_installation_github(session, installation_id)
 
-            pr_commits = await gh.getitem(
-                f"/repos/{config.REPOSITORY}/pulls/{pr.number}/commits"
+            pr_compare = CompareResponse(
+                **await gh.getitem(
+                    f"/repos/{config.REPOSITORY}/compare/{pr.base.sha}...{pr.head.sha}"
+                )
             )
-            commits = [Commit(**commit) for commit in pr_commits]
 
-    update_pull_request(pr, commits)
+    update_pull_request(pr, pr_compare.commits if pr_compare else None)
 
     db.session.commit()
