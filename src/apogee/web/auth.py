@@ -56,7 +56,7 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 @bp.get("/login")
 async def login():
     #  print(g.gh_user, g.cern_user)
-    if ("gh_user" in g and g.gh_user is not None) and (
+    if ("gh_user" in g and g.gh_user is not None and "gh_token" in session) and (
         "cern_user" in g and g.cern_user is not None
     ):
         return redirect(request.args.get("next", url_for("index")))

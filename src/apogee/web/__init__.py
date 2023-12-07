@@ -3,6 +3,7 @@ import html
 from contextvars import ContextVar
 import re
 from typing import Any, Dict, List, cast
+from authlib.integrations.flask_client import OAuthError
 import flask
 from flask import (
     abort,
@@ -126,30 +127,32 @@ def create_app():
     async def login_required():
         if request.endpoint in unprotected_endpoints or request.path == "/favicon.ico":
             return
-        if (
-            "gh_token" not in web_session or "cern_user" not in web_session
-        ) and request.endpoint not in (
+        auth_endpoints = (
             "auth.login_github",
             "auth.login",
             "auth.github_callback",
             "auth.cern_login",
             "auth.cern_callback",
-        ):
+        )
+        if (
+            "gh_token" not in web_session or "cern_user" not in web_session
+        ) and request.endpoint not in auth_endpoints:
             login_url = url_for("auth.login")
             return redirect(login_url), 302, {"HX-Location": login_url}
 
-        if "gh_token" in web_session:
+        if "gh_token" in web_session and request.endpoint not in auth_endpoints:
             # check token validity
             now = datetime.now(tz=timezone.utc).timestamp()
             if now > web_session["gh_token"]["expires_at"]:
-                if now > web_session["gh_token"]["refresh_expires_at"]:
+                try:
+                    #  I **think** this should refresh the token?
+                    oauth.github.get("user")
+                except OAuthError:
                     # log out from github
                     web_session.pop("gh_token")
+                    web_session.pop("gh_user")
                     login_url = url_for("auth.login")
                     return redirect(login_url), 302, {"HX-Location": login_url}
-
-                # I **think** this should referesh the token?
-                oauth.github.get("user")
 
         if "gh_user" not in web_session:
             if "gh_token" not in web_session:
