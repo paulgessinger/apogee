@@ -3,7 +3,7 @@ from typing import Iterable, List, Tuple, cast
 
 from flask import Blueprint, flash, render_template, request, url_for
 from gidgethub.abc import GitHubAPI
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, raiseload
 import sqlalchemy.sql.functions as func
 from apogee.github import update_pull_request
 
@@ -12,7 +12,7 @@ from apogee.web.util import with_github
 from apogee.cache import memoize
 from apogee.model.github import Commit, CompareResponse, PullRequest
 from apogee import config
-from apogee.model.db import PrCommitAssociation, db
+from apogee.model.db import db
 from apogee.model import db as model
 
 bp = Blueprint("pulls", __name__, url_prefix="/pulls")
@@ -37,16 +37,24 @@ class ExtendedPullRequest(PullRequest):
 
 
 def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest], int]:
-    open_pulls: Iterable[model.PullRequest] = (
-        db.session.execute(
-            db.select(model.PullRequest)
-            .filter_by(state="open")
-            .order_by(model.PullRequest.updated_at.desc())
-            .offset((page - 1) * per_page)
-            .limit(per_page)
+    select = (
+        db.select(model.PullRequest)
+        .filter_by(state="open")
+        .order_by(model.PullRequest.updated_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .options(
+            joinedload(model.PullRequest.user),
+            joinedload(model.PullRequest.patches),
+            joinedload(model.PullRequest.commits).joinedload(
+                model.PrCommitAssociation.commit
+            ),
+            raiseload("*"),
         )
-        .scalars()
-        .all()
+    )
+
+    open_pulls: Iterable[model.PullRequest] = (
+        db.session.execute(select).unique().scalars().all()
     )
 
     total: int = cast(
