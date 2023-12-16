@@ -239,7 +239,7 @@ class PullRequest(db.Model):
             .where(PrCommitAssociation.pull_request_number == self.number)
             .join(PrCommitAssociation.commit)
             .join(Commit.pipelines)
-            .group_by(Commit.sha)
+            .group_by(model.Commit.sha, model.Pipeline.id)
             .order_by(PrCommitAssociation.order.desc())
             .limit(1)
         )

@@ -75,7 +75,7 @@ def get_open_pulls(
         )
         .join(model.PrCommitAssociation.commit)
         .join(model.Commit.pipelines)
-        .group_by(model.Commit.sha)
+        .group_by(model.Commit.sha, model.Pipeline.id)
     )
 
     pipelines = db.session.execute(pipeline_select).all()
@@ -165,7 +165,7 @@ async def show(gh: GitHubAPI, number: int):
         .where(model.PrCommitAssociation.pull_request_number == pull.number)
         .join(model.PrCommitAssociation.commit)
         .join(model.Commit.pipelines)
-        .group_by(model.Commit.sha)
+        .group_by(model.Commit.sha, model.Pipeline.id)
     )
 
     pipelines = db.session.execute(pipeline_select).all()
