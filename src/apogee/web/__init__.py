@@ -29,8 +29,10 @@ from gidgetlab.aiohttp import GitLabAPI
 import aiohttp
 import sqlalchemy
 import sqlalchemy.exc
+import sqlalchemy.orm
 import sqlalchemy.sql.functions as func
 from werkzeug.middleware.proxy_fix import ProxyFix
+import logging
 
 from apogee.cli import add_cli, update_references
 from apogee.model.github import User
@@ -64,6 +66,8 @@ from apogee.util import (
     parse_pipeline_url,
 )
 
+logging.basicConfig(format="%(levelname)s %(name)s %(message)s")
+
 _is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
 
@@ -77,6 +81,8 @@ def create_app():
         app.config["SESSION_SQLALCHEMY"] = db
     elif app.config["SESSION_TYPE"] == "redis":
         app.config["SESSION_REDIS"] = redis.from_url(config.SESSION_REDIS_URL)
+
+    #  logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
     celery_init_app(app)
 
@@ -365,33 +371,6 @@ def create_app():
         db.session.commit()
 
         return render_template("pipeline.html", pipeline=pipeline, expanded=True)
-
-    @app.route("/toggle_revert/<sha>", methods=["POST"])
-    async def toggle_revert(sha):
-        commit = db.get_or_404(model.Commit, sha)
-        commit.revert = not commit.revert
-        db.session.commit()
-
-        return f"""
-    <input
-       type="checkbox"
-       hx-post="{ url_for('toggle_revert', sha=sha) }"
-       { 'checked' if commit.revert else ''}
-    >
-    """
-
-    @app.route("/reset_reverts", methods=["POST"])
-    async def reset_reverts():
-        db.session.execute(sqlalchemy.update(model.Commit).values(revert=False))
-        db.session.commit()
-        commits = (
-            db.session.execute(
-                db.select(model.Commit).order_by(model.Commit.order.desc())
-            )
-            .scalars()
-            .all()
-        )
-        return "", 200, {"HX-Refresh": "true"}
 
     @app.route("/reset_patches", methods=["POST"])
     async def reset_patches():
@@ -694,35 +673,34 @@ def create_app():
             code = 200 if "HX-Request" in request.headers else 404
             return render_template("error.html"), code
 
-        # @TODO: In pull case take all of main branch
-        commit_select = db.select(model.Commit).order_by(model.Commit.order.desc())
+        num_total_patches = (
+            db.session.execute(db.select(func.count(model.Patch.id))).scalars().first()
+        ) or 0
+
+        commit_select = (
+            db.select(
+                model.Commit,
+            )
+            .order_by(model.Commit.order.desc())
+            .filter(model.Commit.patches.any())
+            .options(sqlalchemy.orm.joinedload(model.Commit.patches))
+        )
 
         if pull is None:
             commit_select = commit_select.where(
                 model.Commit.order <= trigger_commit.order
             )
 
-        commits = db.session.execute(commit_select).scalars().all()
-
-        reverts = []
+        commits = db.session.execute(commit_select).unique().scalars().all()
         patches: List[model.Patch] = []
 
-        num_total_patches = (
-            db.session.execute(db.select(func.count(model.Patch.id))).scalars().first()
-        )
-
         for commit in commits:
-            #  print(commit.sha, commit.committed_date, commit.subject)
-            if commit.revert:
-                reverts.append(commit)
             patches.extend(reversed(sorted(commit.patches, key=lambda p: p.order)))
 
         patches.reverse()
 
         if pr is not None:
             patches += sorted(pr.patches, key=lambda p: p.order)
-
-        reverts.reverse()
 
         variables = {
             "SOURCE_SHA": sha,
@@ -739,9 +717,6 @@ def create_app():
             variables["ACTS_REF"] = pr.head_ref
             variables["SOURCE_PULL"] = str(pr.number)
 
-        if len(reverts) > 0:
-            variables["REVERT_SHAS"] = ",".join(c.sha for c in reverts)
-
         if len(patches) > 0:
             variables["PATCH_URLS"] = ",".join(p.url for p in patches)
 
@@ -753,7 +728,6 @@ def create_app():
             return render_template(
                 "run_pipeline.html" if not is_toggle else "run_pipeline_inner.html",
                 commit=trigger_commit,
-                reverts=reverts,
                 patches=patches,
                 pr=pr,
                 variables=variables,
