@@ -11,6 +11,8 @@
 		is-danger
 		{% elif status == 'running' -%}
 		is-info
+		{% elif status == 'canceled' -%}
+		is-warning is-light
 		{% elif status == 'skipped' -%}
 		is-danger is-light
 		{% elif status == 'created' -%}
