@@ -1,6 +1,6 @@
 {% from "macros.html" import status_to_class, relative_datetime %}
 
-<div id="pipeline-{{ pipeline.id }}" class="box" x-data="{ expanded: {{ 'true' if expanded else 'false' }} }">
+<div id="pipeline-{{ pipeline.id }}" class="box pipeline">
 		<div class="columns">
 			<div class="column">
 				<p class="title is-7">
@@ -21,8 +21,6 @@
 			<div class="column is-narrow">
 				<div class="buttons">
 					<button class="button" 
-						:class="clicked ? 'is-loading' : ''"
-						x-on:click="clicked = true"
 						hx-post="{{ url_for("reload_pipeline", pipeline_id=pipeline.id) }}"
 						hx-swap="outerHTML"
 						hx-target="#pipeline-{{ pipeline.id }}"
@@ -37,16 +35,31 @@
 						<span>Refs</span>
 					</a>
 
-					<button class="button" @click="expanded = !expanded" x-html=" expanded ? 'Less' : 'More'"></button>
+					{% if expanded %}
+					<button 
+						hx-get="{{ url_for('pipeline', pipeline_id=pipeline.id) }}"
+						hx-target="#pipeline-{{pipeline.id}}"
+						hx-swap="outerHTML"
+						class="button">
+						Less
+					</button>
+					{% else %}
+						<button 
+							hx-get="{{ url_for('pipeline', pipeline_id=pipeline.id, detail=True) }}" 
+						  hx-target="#pipeline-{{pipeline.id}}"
+							hx-swap="outerHTML"
+							class="button">
+							More
+						</button>
+					{% endif %}
 				</div>
 			</div>
 		</div>
 		{# hard code stages for now #}
-		{#{% set stages = pipeline.jobs|map(attribute="stage")|list|sort|unique %}#}
+		{% if expanded %}
 		{% set stages = ["build", "test", "report"] %}
 
 
-		<div class="block" x-show="expanded" x-collapse>
 			<hr/>
 
 			<div style="overflow-x: scroll;">
@@ -72,6 +85,6 @@
 			</span>
 			</div>
 			{% endfor %}
-		</div>
+		{% endif %}
 
 	</div>

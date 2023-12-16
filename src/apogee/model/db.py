@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Optional
 
 from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy.sql.functions as func
 from sqlalchemy import (
     Column,
     MetaData,
@@ -227,20 +228,29 @@ class PullRequest(db.Model):
         )
 
     @property
-    def latest_commit_pipeline(self) -> Optional["Pipeline"]:
-        commits = list(sorted(self.commits, key=lambda x: x.order))
-        if len(commits) == 0:
-            return None
-        return commits[-1].commit.latest_pipeline
-
-    @property
     def latest_pipeline(self) -> Optional["Pipeline"]:
-        # @TODO: Refactor: slow
-        for commit in sorted(self.commits, key=lambda x: x.order, reverse=True):
-            if pipeline := commit.commit.latest_pipeline:
-                return pipeline
+        pipeline_select = (
+            db.select(
+                Commit.sha,
+                PrCommitAssociation.order,
+                Pipeline,
+                func.max(Pipeline.created_at),
+            )
+            .where(PrCommitAssociation.pull_request_number == self.number)
+            .join(PrCommitAssociation.commit)
+            .join(Commit.pipelines)
+            .group_by(Commit.sha)
+            .order_by(PrCommitAssociation.order.desc())
+            .limit(1)
+        )
 
-        return None
+        result = db.session.execute(pipeline_select).one_or_none()
+
+        if result is None:
+            return None
+
+        _, _, pipeline, _ = result
+        return pipeline
 
 
 class PrCommitAssociation(db.Model):

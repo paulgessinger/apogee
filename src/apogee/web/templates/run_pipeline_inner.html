@@ -16,20 +16,6 @@
 <hr/>
 
 <div class="block">
-<h2 class="title is-4">Reverting:</h2>
-
-{% for commit in reverts %}
-<div class="box">
-	{% with commit = commit %}
-		{% include "commit_title.html" %}
-	{% endwith %}
-</div>
-{% else %}
-Nothing!
-{% endfor %}
-</div>
-
-<hr/>
 
 <div class="block">
 <h2 class="title is-4">Patches:</h2>

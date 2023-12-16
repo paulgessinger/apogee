@@ -13,7 +13,6 @@
 			<div class="field is-grouped">
 				{% if commit.patches|length > 0 %}
 				<p class="control">
-					{#<a href="{{ url_for('edit_patches', sha=commit.sha) }}">patches: {{ commit.patches|length }}</a>#}
 					<a class="button is-light is-warning"
 						href="{{ url_for('edit_patches', sha=commit.sha) }}">
 						<span class="icon">
@@ -23,9 +22,10 @@
 					</a>
 				</p>
 				{% endif %}
+
 				<p class="control">
 					<a class="button is-primary" hx-boost="true"
-						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if pull else none) }}">
+						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if (pull and is_latest) else none) }}">
 						<span class="icon">
 							<ion-icon name="rocket"></ion-icon>
 						</span>
@@ -43,15 +43,6 @@
 				</p>
 				{% endif %}
 
-				<p class="control">
-					<label class="checkbox mt-2">
-						<input 
-				type="checkbox"
-		hx-post="{{ url_for('toggle_revert', sha=commit.sha) }}"
-	hx-swap="outerHTML"
- {% if commit.revert %}checked{% endif %}> Revert
-					</label>
-				</p>
 			</div>
 		</div>
 	</div>

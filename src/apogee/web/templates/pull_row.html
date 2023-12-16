@@ -3,7 +3,7 @@
 
 	<div class="columns">
 		<div class="column">
-			{% with pull = pull, status=latest_pipeline.status if latest_pipeline else none %}
+			{% with pull = pull %}
 				{% include "pull_title.html" %}
 			{% endwith %}
 		</div>
@@ -48,45 +48,20 @@
 	<span class="tags">
 	{% set assocs = pull.commits | sort(attribute="order", reverse=True) %}
 	{% for assoc in assocs[:] %}
-	{% set latest_pipeline = assoc.commit.latest_pipeline %}
-	<span class="tag {% if latest_pipeline -%}
+		{% set latest_pipeline = pipeline_by_commit.get(assoc.commit.sha) %}
+		<span class="tag {% if latest_pipeline -%}
 			 {{ status_to_class(latest_pipeline.status) }} 
 			 {% else -%}
 			 is-light
 			 {%- endif %}"
 					x-tooltip.raw="{{ assoc.commit.sha }}">
-					<a href="{{ url_for('commit_detail', sha=assoc.commit.sha, pull=pull.number) }}" 
+					<a href="{{ url_for('commit_detail', sha=assoc.commit.sha, pull=pull.number, latest=True if loop.first else none) }}" 
 						hx-boost="true">{{ assoc.commit.sha[:9] }}</a>
 				</span>
 			{#{{ assoc.commit_sha }} - {{ assoc.commit.subject }} - {{ assoc.order }}<br>#}
 	{% endfor %}
 	</span>
-	{#
-	{% if assocs|length > 5 %}
-	+ {{ assocs|length - 5 }} more
-	{% endif %}
-	#}
 
-	{#
-	{% set pipelines = pull.commit.pipelines|sort(attribute="created_at", reverse=True) %}
-	{% if expanded %}
-		{% for pipeline in pipelines %}
-			{% with pipeline = pipeline, expanded = expanded and loop.first %}
-					{% include "pipeline.html" %}
-			{% endwith %}
-			{% else %}
-			No pipelines
-		{% endfor %}
-	{% else %}
-		{% with pipeline = pipelines|first, expanded = False %}
-				{% if pipeline is defined %}
-				{% include "pipeline.html" %}
-				{% else %}
-				No pipelines
-				{% endif %}
-		{% endwith %}
-	{% endif %}
-	#}
 
 
 </div>

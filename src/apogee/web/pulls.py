@@ -3,7 +3,7 @@ from typing import Iterable, List, Tuple, cast
 
 from flask import Blueprint, flash, render_template, request, url_for
 from gidgethub.abc import GitHubAPI
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, raiseload
 import sqlalchemy.sql.functions as func
 from apogee.github import update_pull_request
 
@@ -12,7 +12,7 @@ from apogee.web.util import with_github
 from apogee.cache import memoize
 from apogee.model.github import Commit, CompareResponse, PullRequest
 from apogee import config
-from apogee.model.db import PrCommitAssociation, db
+from apogee.model.db import db
 from apogee.model import db as model
 
 bp = Blueprint("pulls", __name__, url_prefix="/pulls")
@@ -36,17 +36,27 @@ class ExtendedPullRequest(PullRequest):
     commit: model.Commit
 
 
-def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest], int]:
-    open_pulls: Iterable[model.PullRequest] = (
-        db.session.execute(
-            db.select(model.PullRequest)
-            .filter_by(state="open")
-            .order_by(model.PullRequest.updated_at.desc())
-            .offset((page - 1) * per_page)
-            .limit(per_page)
+def get_open_pulls(
+    page: int, per_page: int
+) -> Tuple[Iterable[model.PullRequest], dict[str, model.Pipeline], int]:
+    select = (
+        db.select(model.PullRequest)
+        .filter_by(state="open")
+        .order_by(model.PullRequest.updated_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .options(
+            joinedload(model.PullRequest.user),
+            joinedload(model.PullRequest.patches),
+            joinedload(model.PullRequest.commits).joinedload(
+                model.PrCommitAssociation.commit
+            ),
+            raiseload("*"),
         )
-        .scalars()
-        .all()
+    )
+
+    open_pulls: Iterable[model.PullRequest] = (
+        db.session.execute(select).unique().scalars().all()
     )
 
     total: int = cast(
@@ -56,7 +66,22 @@ def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest
         ).scalar(),
     )
 
-    return open_pulls, total
+    pipeline_select = (
+        db.select(model.Commit.sha, model.Pipeline, func.max(model.Pipeline.created_at))
+        .where(
+            model.PrCommitAssociation.pull_request_number.in_(
+                [p.number for p in open_pulls]
+            )
+        )
+        .join(model.PrCommitAssociation.commit)
+        .join(model.Commit.pipelines)
+        .group_by(model.Commit.sha)
+    )
+
+    pipelines = db.session.execute(pipeline_select).all()
+
+    pipeline_by_commit = {sha: pipeline for sha, pipeline, _ in pipelines}
+    return open_pulls, pipeline_by_commit, total
 
 
 @bp.route("/reload_pulls", methods=["POST"])
@@ -111,11 +136,12 @@ async def reload_pulls(gh: GitHubAPI):
 def pull_index_view(frame: bool) -> str:
     page = int(request.args.get("page", 1))
     per_page = 20
-    open_pulls, total = get_open_pulls(page, per_page)
+    open_pulls, pipeline_by_commit, total = get_open_pulls(page, per_page)
 
     return render_template(
         "pulls.html" if frame else "pull_list.html",
         pulls=open_pulls,
+        pipeline_by_commit=pipeline_by_commit,
         page=page,
         per_page=per_page,
         num_pages=math.ceil(total / per_page),
@@ -134,7 +160,21 @@ async def index(gh: GitHubAPI):
 async def show(gh: GitHubAPI, number: int):
     pull = db.get_or_404(model.PullRequest, number)
 
-    return render_template("single_pull.html", pull=pull)
+    pipeline_select = (
+        db.select(model.Commit.sha, model.Pipeline, func.max(model.Pipeline.created_at))
+        .where(model.PrCommitAssociation.pull_request_number == pull.number)
+        .join(model.PrCommitAssociation.commit)
+        .join(model.Commit.pipelines)
+        .group_by(model.Commit.sha)
+    )
+
+    pipelines = db.session.execute(pipeline_select).all()
+
+    pipeline_by_commit = {sha: pipeline for sha, pipeline, _ in pipelines}
+
+    return render_template(
+        "single_pull.html", pull=pull, pipeline_by_commit=pipeline_by_commit
+    )
 
 
 @bp.route("/<int:number>/patches")

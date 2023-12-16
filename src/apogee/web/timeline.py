@@ -3,6 +3,7 @@ import math
 
 from flask import Blueprint, render_template, flash, request
 from gidgethub.abc import GitHubAPI
+import sqlalchemy.orm
 import sqlalchemy.sql.functions as func
 from apogee.github import fetch_commits
 
@@ -19,17 +20,21 @@ def timeline_commits_view(frame: bool) -> str:
     page = int(request.args.get("page", 1))
     per_page = 20
 
-    commits = (
-        db.session.execute(
-            db.select(model.Commit)
-            .filter(model.Commit.order >= 0)
-            .order_by(model.Commit.order.desc())
-            .offset((page - 1) * per_page)
-            .limit(per_page)
+    select = (
+        db.select(model.Commit)
+        .filter(model.Commit.order >= 0)
+        .order_by(model.Commit.order.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .options(
+            sqlalchemy.orm.joinedload(model.Commit.author),
+            sqlalchemy.orm.joinedload(model.Commit.pipelines),
+            sqlalchemy.orm.joinedload(model.Commit.patches),
+            sqlalchemy.orm.raiseload("*"),
         )
-        .scalars()
-        .all()
     )
+
+    commits = db.session.execute(select).scalars().unique().all()
 
     total: int = cast(
         int,
