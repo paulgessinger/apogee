@@ -345,6 +345,27 @@ def create_app():
 
             return render_template("update_reference_trace.html", trace=trace)
 
+    @app.get("/pipeline/<int:pipeline_id>")
+    def pipeline(pipeline_id: int):
+        pipeline = (
+            db.session.execute(
+                db.select(model.Pipeline)
+                .where(model.Pipeline.id == pipeline_id)
+                .options(
+                    sqlalchemy.orm.joinedload(model.Pipeline.jobs),
+                    sqlalchemy.orm.raiseload("*"),
+                )
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
+        if pipeline is None:
+            abort(404)
+
+        expanded = request.args.get("detail", type=bool, default=False)
+
+        return render_template("pipeline.html", pipeline=pipeline, expanded=expanded)
+
     @app.route("/reload_pipeline/<int:pipeline_id>", methods=["POST"])
     @with_gitlab
     async def reload_pipeline(gl: GitLabAPI, pipeline_id):
