@@ -36,7 +36,9 @@ class ExtendedPullRequest(PullRequest):
     commit: model.Commit
 
 
-def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest], int]:
+def get_open_pulls(
+    page: int, per_page: int
+) -> Tuple[Iterable[model.PullRequest], dict[str, model.Pipeline], int]:
     select = (
         db.select(model.PullRequest)
         .filter_by(state="open")
@@ -64,7 +66,22 @@ def get_open_pulls(page: int, per_page: int) -> Tuple[Iterable[model.PullRequest
         ).scalar(),
     )
 
-    return open_pulls, total
+    pipeline_select = (
+        db.select(model.Commit.sha, model.Pipeline, func.max(model.Pipeline.created_at))
+        .where(
+            model.PrCommitAssociation.pull_request_number.in_(
+                [p.number for p in open_pulls]
+            )
+        )
+        .join(model.PrCommitAssociation.commit)
+        .join(model.Commit.pipelines)
+        .group_by(model.Commit.sha)
+    )
+
+    pipelines = db.session.execute(pipeline_select).all()
+
+    pipeline_by_commit = {sha: pipeline for sha, pipeline, _ in pipelines}
+    return open_pulls, pipeline_by_commit, total
 
 
 @bp.route("/reload_pulls", methods=["POST"])
@@ -119,11 +136,12 @@ async def reload_pulls(gh: GitHubAPI):
 def pull_index_view(frame: bool) -> str:
     page = int(request.args.get("page", 1))
     per_page = 20
-    open_pulls, total = get_open_pulls(page, per_page)
+    open_pulls, pipeline_by_commit, total = get_open_pulls(page, per_page)
 
     return render_template(
         "pulls.html" if frame else "pull_list.html",
         pulls=open_pulls,
+        pipeline_by_commit=pipeline_by_commit,
         page=page,
         per_page=per_page,
         num_pages=math.ceil(total / per_page),
@@ -142,7 +160,21 @@ async def index(gh: GitHubAPI):
 async def show(gh: GitHubAPI, number: int):
     pull = db.get_or_404(model.PullRequest, number)
 
-    return render_template("single_pull.html", pull=pull)
+    pipeline_select = (
+        db.select(model.Commit.sha, model.Pipeline, func.max(model.Pipeline.created_at))
+        .where(model.PrCommitAssociation.pull_request_number == pull.number)
+        .join(model.PrCommitAssociation.commit)
+        .join(model.Commit.pipelines)
+        .group_by(model.Commit.sha)
+    )
+
+    pipelines = db.session.execute(pipeline_select).all()
+
+    pipeline_by_commit = {sha: pipeline for sha, pipeline, _ in pipelines}
+
+    return render_template(
+        "single_pull.html", pull=pull, pipeline_by_commit=pipeline_by_commit
+    )
 
 
 @bp.route("/<int:number>/patches")

@@ -34,12 +34,10 @@
 	<a href="https://github.com/{{ pull.head_repo_full_name }}/commit/{{ pull.head_sha }}"><code>{{ pull.head_label }}</code></a> @
 	<code x-tooltip.raw="{{ pull.head_sha }}">{{ pull.head_sha[:9] }}</code>,
 	{{ pull.commits | length }} commits, 
-	{% set latest_commit_pipeline = pull.latest_commit_pipeline %}
+
 	{% set latest_pipeline = pull.latest_pipeline %}
-	{% if latest_commit_pipeline is not none %}
-		{{ show_pipeline(latest_commit_pipeline) }}
-	{% elif latest_pipeline is not none %}
-		{{ show_pipeline(latest_pipeline, outdated=True) }}
+	{% if latest_pipeline is not none %}
+		{{ show_pipeline(latest_pipeline, outdated=latest_pipeline.source_sha != pull.head_sha) }}
 	{% else %}
 	<span class="tag is-light">No pipeline</span>
 	{% endif %}

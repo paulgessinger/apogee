@@ -466,12 +466,15 @@ def create_app():
 
     @app.route("/commit/<sha>")
     async def commit_detail(sha: str) -> str:
+        is_latest = request.args.get("latest", type=bool, default=False)
         commit = db.get_or_404(model.Commit, sha)
         pull: model.PullRequest | None = None
         if number := request.args.get("pull"):
             pull = db.get_or_404(model.PullRequest, int(number))
 
-        return render_template("commit_detail.html", commit=commit, pull=pull)
+        return render_template(
+            "commit_detail.html", commit=commit, pull=pull, is_latest=is_latest
+        )
 
     @app.route("/edit_patches", methods=["GET", "POST"])
     async def edit_patches():

@@ -23,7 +23,8 @@
 
 {% block main_column %}
 
-{% with expanded=True %}
+{{ is_latest }}
+{% with expanded=True, is_latest=is_latest %}
 {% include "commit.html" %}
 {% endwith %}
 

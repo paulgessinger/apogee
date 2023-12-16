@@ -25,7 +25,7 @@
 
 				<p class="control">
 					<a class="button is-primary" hx-boost="true"
-						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if pull else none) }}">
+						href="{{ url_for('run_pipeline', sha=commit.sha, back=request.url, pull=pull.number if (pull and is_latest) else none) }}">
 						<span class="icon">
 							<ion-icon name="rocket"></ion-icon>
 						</span>
