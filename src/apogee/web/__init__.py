@@ -337,7 +337,7 @@ def create_app():
                 gl, owner, repo, pipeline_id
             ):
                 trace += "\n" + await execute_reference_update(
-                    session, gl, eos, owner, repo, job, qtest, version, dry_run=True
+                    session, gl, eos, owner, repo, job, qtest, version, dry_run=False
                 )
 
             trace += "\nDone"
