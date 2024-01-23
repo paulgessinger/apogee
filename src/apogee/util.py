@@ -2,6 +2,7 @@ from datetime import datetime
 import tempfile
 import shutil
 import functools
+from flask import current_app
 from fsspec.implementations.zip import ZipFileSystem
 import re
 import os
@@ -106,6 +107,7 @@ async def execute_reference_update(
     if eos.exists(eos_version_dir):
         dest = f"{eos_version_dir}.pre_{datetime.now():%Y-%m-%dT%H-%M-%S}"
         trace += [f"Override dir {eos_version_dir} already exists, moving to {dest}"]
+        current_app.logger.info("%s", trace[-1])
         if not dry_run:
             eos.mv(
                 eos_version_dir,
@@ -118,12 +120,16 @@ async def execute_reference_update(
     r = await session.get(url)
     with tempfile.TemporaryFile() as fh:
         trace += [f"Downloading artifact {url}"]
+        current_app.logger.info("%s", trace[-1])
         async for data, _ in r.content.iter_chunks():
             fh.write(data)
+        current_app.logger.info("Downloaded %d bytes", fh.tell())
         fh.seek(0)
         zipfs = ZipFileSystem(fh)
         run_path = f"run/run_q{qtest}"
         assert zipfs.exists(run_path), f"Could not find {run_path} in zip file"
+
+        current_app.logger.info("Have zip file system")
 
         for name in ("AOD", "ESD"):
             full_name = f"{run_path}/my{name}.pool.root"
@@ -136,11 +142,13 @@ async def execute_reference_update(
                 ), f"{full_target_name} already exists"
 
             trace += [f"Copying {full_name} to {full_target_name}"]
+            current_app.logger.info("%s", trace[-1])
 
             if not dry_run:
                 with zipfs.open(full_name, "rb") as src, eos.open(
                     full_target_name, "wb"
                 ) as dst:
                     shutil.copyfileobj(src, dst, length=1024 * 1024 * 10)
+            current_app.logger.info("Copy complete")
 
     return "\n".join(trace)

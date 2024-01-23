@@ -8,6 +8,7 @@ from authlib.integrations.flask_client import OAuthError
 import flask
 from flask import (
     abort,
+    current_app,
     flash,
     g,
     render_template,
@@ -342,7 +343,10 @@ def create_app():
     async def update_references(
         session: aiohttp.ClientSession, gl: GitLabAPI, pipeline_id: int
     ):
+
+        current_app.logger.info("Request to update references from pipeline %d", pipeline_id)
         pipeline = db.get_or_404(model.Pipeline, pipeline_id)
+
 
         owner, repo, _ = parse_pipeline_url(pipeline.web_url)
 
