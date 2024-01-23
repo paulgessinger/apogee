@@ -87,11 +87,16 @@ async def load_patch(url: str) -> str:
         async with session.get(url) as resp:
             content = await resp.text()
 
-    author, date, subject = content.splitlines()[1:4]
+    lines = content.split("\n")
+    author, date = lines[1:3]
+
+    subject_end = lines.index("---")
+
+    subject = "\n".join(lines[3:subject_end])
 
     author = re.match(r"From: (.*)", author).group(1)
     date = re.match(r"Date: (.*)", date).group(1)
-    subject = re.match(r"Subject: \[PATCH\] (.*)", subject).group(1)
+    subject = re.match(r"Subject: \[PATCH\] (.*)", subject, re.DOTALL).group(1)
 
     return PatchContent(author=author, date=date, subject=subject)
 
@@ -745,7 +750,7 @@ def create_app():
         patches: List[model.Patch] = []
 
         for commit in commits:
-            patches.extend(reversed(sorted(commit.patches, key=lambda p: p.order)))
+            patches.extend(sorted(commit.patches, key=lambda p: p.order))
 
         patches.reverse()
 

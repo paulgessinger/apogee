@@ -29,7 +29,7 @@
 			<a href="https://github.com/{{ patch.pull_request.head_repo_full_name }}/pull/{{ patch.pull_request_number }}">#{{ patch.pull_request_number }}</a>
 			{%- endif %})
 			<br/>
-			<strong>{{ content.subject | pr_links | safe }}</strong> (by {{ content.author }})
+			<pre>{{ content.subject | pr_links | safe }}</pre> (by {{ content.author }})
 		</li>
 		{% else %}
 		No patches!
