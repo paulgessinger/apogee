@@ -141,6 +141,6 @@ async def execute_reference_update(
                 with zipfs.open(full_name, "rb") as src, eos.open(
                     full_target_name, "wb"
                 ) as dst:
-                    shutil.copyfileobj(src, dst)
+                    shutil.copyfileobj(src, dst, length=1024 * 1024 * 10)
 
     return "\n".join(trace)
