@@ -21,17 +21,20 @@
 <h2 class="title is-4">Patches:</h2>
 
 <div class="content">
-<ol>
-{% for patch in patches %}
-<li><a href="{{ patch.url }}">{{ patch.url }}</a> (from {% if patch.pull_request_number is none -%}
-<code>{{ patch.commit_sha[:9] }}</code>
-{%- else -%}
-<a href="https://github.com/{{ patch.pull_request.head_repo_full_name }}/pull/{{ patch.pull_request_number }}">#{{ patch.pull_request_number }}</a>
-{%- endif %})</li>
-{% else %}
-No patches!
-{% endfor %}
-</ol>
+	<ol>
+		{% for patch, content in zip(patches, patch_contents) %}
+		<li><a href="{{ patch.url }}">{{ patch.url }}</a> (from {% if patch.pull_request_number is none -%}
+			<code>{{ patch.commit_sha[:9] }}</code>
+			{%- else -%}
+			<a href="https://github.com/{{ patch.pull_request.head_repo_full_name }}/pull/{{ patch.pull_request_number }}">#{{ patch.pull_request_number }}</a>
+			{%- endif %})
+			<br/>
+			<strong>{{ content.subject | pr_links | safe }}</strong> (by {{ content.author }})
+		</li>
+		{% else %}
+		No patches!
+		{% endfor %}
+	</ol>
 </div>
 </div>
 

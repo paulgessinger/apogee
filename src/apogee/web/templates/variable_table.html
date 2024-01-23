@@ -9,7 +9,15 @@
 	{% for key, value in variables.items() if key != "TRIGGER_PAYLOAD" %}
 	<tr>
 		<td><code>{{ key }}</code></td>
-		<td>{{ value }}</td>
+		<td>
+			{% if key == "PATCH_URLS" %}
+			{% for patch in value.split(",") %}
+			{{ patch }}{{ (",<br/>" if not loop.last else "") | safe }}
+			{% endfor %}
+			{% else %}
+			{{ value }}
+			{% endif %}
+		</td>
 	</tr>
 	{% endfor %}
 	</tbody>

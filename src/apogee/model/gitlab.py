@@ -28,8 +28,8 @@ class Pipeline(BaseModel):
     ref: str
     status: str
     source: str
-    created_at: AwareDatetime
-    updated_at: AwareDatetime
+    created_at: datetime
+    updated_at: datetime
     web_url: str
 
     jobs: list[Job] = Field(default_factory=list)

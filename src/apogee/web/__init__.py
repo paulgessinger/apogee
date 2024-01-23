@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import html
 from contextvars import ContextVar
@@ -33,6 +34,7 @@ import sqlalchemy.orm
 import sqlalchemy.sql.functions as func
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
+from async_lru import alru_cache
 
 from apogee.cli import add_cli, update_references
 from apogee.model.github import User
@@ -70,6 +72,28 @@ logging.basicConfig(format="%(levelname)s %(name)s %(message)s")
 
 _is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
+
+
+@dataclass
+class PatchContent:
+    author: str
+    date: str
+    subject: str
+
+
+@alru_cache(maxsize=128)
+async def load_patch(url: str) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            content = await resp.text()
+
+    author, date, subject = content.splitlines()[1:4]
+
+    author = re.match(r"From: (.*)", author).group(1)
+    date = re.match(r"Date: (.*)", date).group(1)
+    subject = re.match(r"Subject: \[PATCH\] (.*)", subject).group(1)
+
+    return PatchContent(author=author, date=date, subject=subject)
 
 
 def create_app():
@@ -189,7 +213,8 @@ def create_app():
             safe = html.escape(m.group(1))
             return f'<a href="https://github.com/{config.REPOSITORY}/pull/{safe}">#{safe}</a>'
 
-        return re.sub(r"#(\d+)", sub, s)
+        s= re.sub(r"#(\d+)", sub, s)
+        return re.sub(rf"https://github.com/{config.REPOSITORY}/pull/(\d+)", sub, s)
 
     @app.template_filter("markdown")
     def render_markdown(s):
@@ -726,6 +751,10 @@ def create_app():
         if pr is not None:
             patches += sorted(pr.patches, key=lambda p: p.order)
 
+        patch_contents: list[PatchContent] = await gather_limit(
+            5, *[load_patch(p.url) for p in patches]
+        )
+
         variables = {
             "SOURCE_SHA": sha,
         }
@@ -753,6 +782,7 @@ def create_app():
                 "run_pipeline.html" if not is_toggle else "run_pipeline_inner.html",
                 commit=trigger_commit,
                 patches=patches,
+                patch_contents=patch_contents,
                 pr=pr,
                 variables=variables,
                 do_report=do_report,
