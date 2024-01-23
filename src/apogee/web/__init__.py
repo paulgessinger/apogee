@@ -210,11 +210,12 @@ def create_app():
     @app.template_filter("pr_links")
     def pr_links(s):
         def sub(m):
-            safe = html.escape(m.group(1))
+            safe = html.escape(m.group(1) or m.group(2))
             return f'<a href="https://github.com/{config.REPOSITORY}/pull/{safe}">#{safe}</a>'
 
-        s= re.sub(r"#(\d+)", sub, s)
-        return re.sub(rf"https://github.com/{config.REPOSITORY}/pull/(\d+)", sub, s)
+        return re.sub(
+            rf"(?:#(\d+)|https://github.com/{config.REPOSITORY}/pull/(\d+))", sub, s
+        )
 
     @app.template_filter("markdown")
     def render_markdown(s):
