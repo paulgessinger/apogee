@@ -146,6 +146,10 @@ def handle_job_webhook(payload: Dict[str, Any]) -> None:
     pipeline_id = payload["pipeline_id"]
     logger.info("Handling job %s for pipeline %s", job.id, pipeline_id)
 
+    if pipeline_id is None:
+        logger.info("Cannot save job without pipeline id")
+        return
+
     if pipeline := db.session.execute(
         db.select(model.Pipeline).filter_by(id=pipeline_id)
     ).scalar_one_or_none():
