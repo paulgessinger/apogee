@@ -77,7 +77,7 @@
 			<div style="overflow-x:scroll;">
 			<span class="tags mt-1 mb-1">
 				{% for job in jobs|sort(attribute="name") %}
-				<span class="tag {{ status_to_class(job.status) }}"
+				<span class="tag {{ status_to_class(job.status, job.allow_failure) }}"
 				x-tooltip.raw="{{ job.status|upper }}">
 					<a href="{{ job.web_url }}">{{ job.name }}</a>
 				</span>

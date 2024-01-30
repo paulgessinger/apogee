@@ -4,11 +4,15 @@
 	<span>@{{ user.login }}</span></a>
 {%- endmacro %}
 
-{% macro status_to_class(status) -%}
+{% macro status_to_class(status, allow_failure=False) -%}
 		{% if status == 'success' -%}
 		is-success
 		{% elif status == 'failed' -%}
-		is-danger
+			{% if allow_failure -%}
+				is-warning
+			{% else -%}
+				is-danger
+			{% endif -%}
 		{% elif status == 'running' -%}
 		is-info
 		{% elif status == 'canceled' -%}
