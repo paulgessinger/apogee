@@ -70,6 +70,7 @@ from apogee.util import (
 )
 
 logging.basicConfig(format="%(levelname)s %(name)s %(message)s")
+logging.getLogger().setLevel(logging.INFO)
 
 _is_htmx_var: ContextVar[bool] = ContextVar("is_htmx")
 is_htmx: bool = cast(bool, LocalProxy(_is_htmx_var))
