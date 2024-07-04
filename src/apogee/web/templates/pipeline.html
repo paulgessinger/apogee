@@ -78,7 +78,7 @@
             {% for job in jobs|sort(attribute="name") %}
             <span class="tag {{ status_to_class(job.status, job.allow_failure) }}"
             x-tooltip.raw="{{ job.status|upper }}">
-            <a href="{{ job.web_url }}">{{ job.stage }}{{ job.name }}</a>
+            <a href="{{ job.web_url }}">{{ job.name }}</a>
             </span>
             {% endfor %}
           </span>
