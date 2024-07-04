@@ -57,8 +57,7 @@
 		</div>
 		{# hard code stages for now #}
 		{% if expanded %}
-		{% set stages = ["build", "test", "report"] %}
-
+		{% set stages = pipeline.jobs|map(attribute="stage")|unique|sort|list %}
 
 			<hr/>
 
@@ -70,21 +69,27 @@
 
 			<hr/>
 
-			{% for stage in stages %}
-			{{ stage }}
-			{% set jobs = pipeline.jobs|selectattr("stage", "equalto", stage)|list %}
+      {% macro render_stage(stage) %}
+          {{ stage }}
+          {% set jobs = pipeline.jobs|selectattr("stage", "equalto", stage)|list %}
 
-			<div style="overflow-x:scroll;">
-			<span class="tags mt-1 mb-1">
-				{% for job in jobs|sort(attribute="name") %}
-				<span class="tag {{ status_to_class(job.status, job.allow_failure) }}"
-				x-tooltip.raw="{{ job.status|upper }}">
-					<a href="{{ job.web_url }}">{{ job.name }}</a>
-				</span>
-				{% endfor %}
-			</span>
-			</div>
+          <div style="overflow-x:scroll;">
+          <span class="tags mt-1 mb-1">
+            {% for job in jobs|sort(attribute="name") %}
+            <span class="tag {{ status_to_class(job.status, job.allow_failure) }}"
+            x-tooltip.raw="{{ job.status|upper }}">
+            <a href="{{ job.web_url }}">{{ job.stage }}{{ job.name }}</a>
+            </span>
+            {% endfor %}
+          </span>
+          </div>
+      {% endmacro %}
+
+      {{ render_stage("build") }}
+			{% for stage in stages if stage not in ("build", "report") %}
+      {{ render_stage(stage) }}
 			{% endfor %}
+      {{ render_stage("report") }}
 		{% endif %}
 
 	</div>
