@@ -7,7 +7,7 @@ date
 
 flask db upgrade
 
-celery_workers=${CELERY_WORKERS:-4}
+CELERY_WORKERS=${CELERY_WORKERS:-4}
 
 celery -A make_celery worker --concurrency ${CELERY_WORKERS} --loglevel=info &
 pid=$!
