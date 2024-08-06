@@ -2,14 +2,20 @@
 
 set -e
 
+function run() {-
+│   set -x
+│   "$@"-
+│   { set +x;  } 2> /dev/null
+}
+
 echo "Starting Apogee"
 date
 
-flask db upgrade
+run flask db upgrade
 
 CELERY_WORKERS=${CELERY_WORKERS:-4}
 
-celery -A make_celery worker --concurrency ${CELERY_WORKERS} --loglevel=info &
+run celery -A make_celery worker --concurrency ${CELERY_WORKERS} --loglevel=info &
 pid=$!
 
 function teardown() {
@@ -24,4 +30,4 @@ trap teardown EXIT
 workers=${GUNICORN_WORKERS:-4}
 port=${PORT:-5001}
 
-gunicorn "apogee.web:create_app()" --workers $workers --bind "0.0.0.0:$port"
+run gunicorn "apogee.web:create_app()" --workers $workers --bind "0.0.0.0:$port"
