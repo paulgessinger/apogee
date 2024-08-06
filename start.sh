@@ -2,9 +2,14 @@
 
 set -e
 
+echo "Starting Apogee"
+date
+
 flask db upgrade
 
-celery -A make_celery worker --loglevel=info &
+celery_workers=${CELERY_WORKERS:-4}
+
+celery -A make_celery worker --concurrency ${CELERY_WORKERS} --loglevel=info &
 pid=$!
 
 function teardown() {
