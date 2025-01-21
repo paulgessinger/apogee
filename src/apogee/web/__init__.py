@@ -65,6 +65,8 @@ from apogee import config
 from apogee.util import (
     execute_reference_update,
     gather_limit,
+    get_object_counts_diffs,
+    create_patch_from_diffs,
     get_pipeline_references,
     parse_pipeline_url,
 )
@@ -345,9 +347,10 @@ def create_app():
         session: aiohttp.ClientSession, gl: GitLabAPI, pipeline_id: int
     ):
 
-        current_app.logger.info("Request to update references from pipeline %d", pipeline_id)
+        current_app.logger.info(
+            "Request to update references from pipeline %d", pipeline_id
+        )
         pipeline = db.get_or_404(model.Pipeline, pipeline_id)
-
 
         owner, repo, _ = parse_pipeline_url(pipeline.web_url)
 
@@ -380,6 +383,25 @@ def create_app():
             print(trace)
 
             return render_template("update_reference_trace.html", trace=trace)
+
+    @app.route("/update_object_counts/<int:pipeline_id>", methods=["GET", "POST"])
+    @with_gitlab
+    @with_session
+    async def update_object_counts(
+        session: aiohttp.ClientSession, gl: GitLabAPI, pipeline_id: int
+    ):
+        current_app.logger.info(
+            "Request to update object counts from pipeline %d", pipeline_id
+        )
+        pipeline = db.get_or_404(model.Pipeline, pipeline_id)
+
+        owner, repo, _ = parse_pipeline_url(pipeline.web_url)
+
+        diffs = await get_object_counts_diffs(gl, owner, repo, pipeline_id)
+
+        patch = create_patch_from_diffs([diff for _, diff in diffs] , "Apogee", "apogee@example.com", "Object counts")
+
+        return patch
 
     @app.get("/pipeline/<int:pipeline_id>")
     def pipeline(pipeline_id: int):

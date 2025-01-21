@@ -6,6 +6,7 @@ from flask import current_app
 from fsspec.implementations.zip import ZipFileSystem
 import re
 import os
+import hashlib
 
 import asyncio
 
@@ -86,6 +87,141 @@ async def get_pipeline_references(
         results.append((job, qtest, version))
 
     return results
+
+
+async def get_object_counts_diffs(
+    gl: GitLabAPI,
+    owner: str,
+    repo: str,
+    pipeline_id: int,
+) -> list[tuple[Job, str]]:
+    pipeline_data = await gl.getitem(
+        f"/projects/{owner}%2F{repo}/pipelines/{pipeline_id}"
+    )
+
+    pipeline = ApiPipeline(**pipeline_data)
+    await pipeline.fetch(gl)
+
+    failed_jobs = [j for j in pipeline.jobs if j.status == "failed"]
+
+    traces = await gather_limit(
+        10,
+        *(
+            gl.getitem(f"/projects/{owner}%2F{repo}/jobs/{j.id}/trace")
+            for j in failed_jobs
+        ),
+    )
+
+    results = []
+
+    for job, trace in zip(failed_jobs, traces):
+        print("Job", f"#{job.id} {job.name}", "failed")
+        
+        # Match from "Comparing against reference" to "FAILURE"
+        m = re.search(
+            r"(?ms)"  # Multiline and dot matches newline
+            r"Comparing against reference\n"  # Start marker
+            r"(--- .+?\.ref[^\n]*\n"  # Start capturing: Reference file ending in .ref
+            r"\+\+\+ [^\n]+\n"  # New file
+            r".*?)"  # Any content in between (non-greedy)
+            r" -- FAILURE",  # End marker
+            trace
+        )
+        
+        if m is None:
+            print("Could not find object counts diff in trace, skipping this job")
+            continue
+
+        diff = m.group(1)  # Get just the captured diff content
+        results.append((job, diff))
+
+    return results
+
+
+def create_patch_from_diffs(
+    diffs: list[str],  # list of diff contents
+    author_name: str,
+    author_email: str,
+    subject: str,
+) -> str:
+    # Generate a fake but consistent commit hash from the content
+    content_hash = hashlib.sha1(
+        "\n".join(diffs).encode()
+    ).hexdigest()
+    
+    now = datetime.now()
+    
+    # Start with the patch header
+    lines = [
+        f"From {content_hash} Mon Sep 17 00:00:00 2001",
+        f"From: {author_name} <{author_email}>",
+        f"Date: {now.strftime('%a, %d %b %Y %H:%M:%S %z')}",
+        f"Subject: [PATCH] {subject}",
+        "",
+        "---"
+    ]
+    
+    # Add the file summary
+    file_changes = []
+    total_plus = 0
+    total_minus = 0
+    
+    processed_diffs = []
+    for diff in diffs:
+        # Extract filename from the diff header
+        m = re.search(r"^--- (.+?)\.ref[\t\s]", diff, re.MULTILINE)
+        if not m:
+            continue
+            
+        input_path = m.group(1) + ".ref"
+        
+        # Validate and transform path
+        if "ActsConfig/" not in input_path:
+            print(f"Skipping diff for {input_path} - expected path containing ActsConfig/")
+            continue
+            
+        # Transform path/to/ActsConfig/file.ref -> Tracking/Acts/ActsConfig/share/file.ref
+        filename = "Tracking/Acts/ActsConfig/share/" + os.path.basename(input_path)
+        
+        plus = diff.count("\n+")
+        minus = diff.count("\n-")
+        file_changes.append(f" {filename:<50} | {plus + minus:>3} {plus:>3}+ {minus:>3}-")
+        total_plus += plus
+        total_minus += minus
+        
+        # Replace the paths in the diff content
+        new_diff = diff.replace(
+            f"--- {input_path}",
+            f"--- a/{filename}"
+        )
+        new_diff = re.sub(
+            r"\+\+\+ .+?(?=\t|\s|$)",  # Match +++ and everything until tab, space or end of line
+            f"+++ b/{filename}",
+            new_diff
+        )
+        
+        processed_diffs.append((filename, new_diff))
+    
+    lines.extend(file_changes)
+    lines.append(f" {len(processed_diffs)} files changed, {total_plus} insertions(+), {total_minus} deletions(-)")
+    lines.append("")
+    
+    # Add each diff with git diff header
+    for filename, diff_content in processed_diffs:
+        lines.extend([
+            f"diff --git a/{filename} b/{filename}",
+            "index 0000000..0000000",  # Fake index
+            diff_content.rstrip(),
+            ""  # Empty line between diffs
+        ])
+    
+    # Add git patch footer
+    lines.extend([
+        "-- ",
+        "Apogee"
+    ])
+    
+    return "\n".join(lines)
 
 
 async def execute_reference_update(
