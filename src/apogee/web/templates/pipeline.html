@@ -28,7 +28,7 @@
 						<span class="icon"><ion-icon name="refresh-outline"></ion-icon></span>
 					</button>
 
-					<a href="{{ url_for('update_object_counts', pipeline_id=pipeline.id, next=request.url) }}" class="button is-primary is-light" 
+					<a href="{{ url_for('update_object_counts', pipeline_id=pipeline.id) }}" class="button is-primary is-light" 
 						hx-boost="true"
 						>
 						<span class="icon"><ion-icon name="arrow-up-circle-outline"></ion-icon></span>

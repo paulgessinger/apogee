@@ -94,7 +94,7 @@ async def get_object_counts_diffs(
     owner: str,
     repo: str,
     pipeline_id: int,
-) -> list[tuple[Job, str]]:
+) -> list[tuple[Job, str, str]]:
     pipeline_data = await gl.getitem(
         f"/projects/{owner}%2F{repo}/pipelines/{pipeline_id}"
     )
@@ -121,7 +121,7 @@ async def get_object_counts_diffs(
         m = re.search(
             r"(?ms)"  # Multiline and dot matches newline
             r"Comparing against reference\n"  # Start marker
-            r"(--- .+?\.ref[^\n]*\n"  # Start capturing: Reference file ending in .ref
+            r"(--- (.+?)\.ref[^\n]*\n"  # Start capturing: Reference file ending in .ref, with nested capture for filename
             r"\+\+\+ [^\n]+\n"  # New file
             r".*?)"  # Any content in between (non-greedy)
             r" -- FAILURE",  # End marker
@@ -132,8 +132,9 @@ async def get_object_counts_diffs(
             print("Could not find object counts diff in trace, skipping this job")
             continue
 
-        diff = m.group(1)  # Get just the captured diff content
-        results.append((job, diff))
+        diff = m.group(1)  # Get the captured diff content
+        ref_file = m.group(2) + ".ref"  # Get the reference filename
+        results.append((job, ref_file, diff))
 
     return results
 
@@ -189,6 +190,10 @@ def create_patch_from_diffs(
         total_plus += plus
         total_minus += minus
         
+        # Generate consistent hashes for the index line
+        old_hash = hashlib.sha1(f"old-{filename}".encode()).hexdigest()
+        new_hash = hashlib.sha1(f"new-{filename}".encode()).hexdigest()
+        
         # Replace the paths in the diff content
         new_diff = diff.replace(
             f"--- {input_path}",
@@ -200,17 +205,17 @@ def create_patch_from_diffs(
             new_diff
         )
         
-        processed_diffs.append((filename, new_diff))
+        processed_diffs.append((filename, new_diff, old_hash, new_hash))
     
     lines.extend(file_changes)
     lines.append(f" {len(processed_diffs)} files changed, {total_plus} insertions(+), {total_minus} deletions(-)")
     lines.append("")
     
     # Add each diff with git diff header
-    for filename, diff_content in processed_diffs:
+    for filename, diff_content, old_hash, new_hash in processed_diffs:
         lines.extend([
             f"diff --git a/{filename} b/{filename}",
-            "index 0000000..0000000",  # Fake index
+            f"index {old_hash[:40]}..{new_hash[:40]} 100644",
             diff_content.rstrip(),
             ""  # Empty line between diffs
         ])
@@ -218,10 +223,55 @@ def create_patch_from_diffs(
     # Add git patch footer
     lines.extend([
         "-- ",
-        "Apogee"
+        ""
     ])
     
     return "\n".join(lines)
+
+
+def combine_diffs(
+    diffs: list[str],  # list of diff contents
+) -> str:
+    processed_diffs = []
+    
+    for diff in diffs:
+        # Extract filename from the diff header
+        m = re.search(r"^--- (.+?)\.ref[\t\s]", diff, re.MULTILINE)
+        if not m:
+            continue
+            
+        input_path = m.group(1) + ".ref"
+        
+        # Validate and transform path
+        if "ActsConfig/" not in input_path:
+            print(f"Skipping diff for {input_path} - expected path containing ActsConfig/")
+            continue
+            
+        # Transform path/to/ActsConfig/file.ref -> Tracking/Acts/ActsConfig/share/file.ref
+        filename = "Tracking/Acts/ActsConfig/share/" + os.path.basename(input_path)
+        
+        # Generate consistent hashes for the index line
+        old_hash = hashlib.sha1(f"old-{filename}".encode()).hexdigest()
+        new_hash = hashlib.sha1(f"new-{filename}".encode()).hexdigest()
+        
+        # Replace the paths in the diff content
+        new_diff = diff.replace(
+            f"--- {input_path}",
+            f"--- a/{filename}"
+        )
+        new_diff = re.sub(
+            r"\+\+\+ .+?(?=\t|\s|$)",  # Match +++ and everything until tab, space or end of line
+            f"+++ b/{filename}",
+            new_diff
+        )
+        
+        processed_diffs.append(
+            f"diff --git a/{filename} b/{filename}\n"
+            f"index {old_hash[:40]}..{new_hash[:40]} 100644\n"
+            f"{new_diff}"
+        )
+    
+    return "\n".join(processed_diffs)
 
 
 async def execute_reference_update(

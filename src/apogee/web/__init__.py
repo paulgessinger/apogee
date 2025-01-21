@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import hashlib
 from datetime import datetime, timedelta, timezone
 import html
 from contextvars import ContextVar
@@ -6,6 +7,7 @@ import re
 from typing import Any, Dict, List, cast
 from authlib.integrations.flask_client import OAuthError
 import flask
+from flask import Response
 from flask import (
     abort,
     current_app,
@@ -37,7 +39,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 from async_lru import alru_cache
 
-from apogee.cli import add_cli, update_references
+from apogee.cli import add_cli
 from apogee.model.github import User, UserResponse
 from apogee.model.gitlab import CompareResult, Job, Pipeline
 from apogee.model.record import Patch
@@ -62,11 +64,13 @@ from apogee.tasks import (
 
 
 from apogee import config
+from apogee.cache import cache
 from apogee.util import (
     execute_reference_update,
     gather_limit,
     get_object_counts_diffs,
     create_patch_from_diffs,
+    combine_diffs,
     get_pipeline_references,
     parse_pipeline_url,
 )
@@ -355,7 +359,6 @@ def create_app():
         owner, repo, _ = parse_pipeline_url(pipeline.web_url)
 
         refs = await get_pipeline_references(gl, owner, repo, pipeline.id)
-        print(refs)
 
         if request.method == "GET":
             return render_template(
@@ -399,9 +402,30 @@ def create_app():
 
         diffs = await get_object_counts_diffs(gl, owner, repo, pipeline_id)
 
-        patch = create_patch_from_diffs([diff for _, diff in diffs] , "Apogee", "apogee@example.com", "Object counts")
+        patch = create_patch_from_diffs(
+            [diff for _, _, diff in diffs], "Apogee", "apogee@example.com", "Object counts"
+        )
 
-        return patch
+
+        patch_digest = hashlib.sha256(
+            "\n".join([diff for _, _, diff in diffs]).encode()
+        ).hexdigest()[:16]
+
+        patch_cache_key = f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.patch"
+        cache.set(patch_cache_key, patch, expire=config.OBJECT_COUNTS_CACHE_EXPIRATION)
+
+        combined_diff = combine_diffs([diff for _, _, diff in diffs])
+        combined_diff_cache_key = f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.diff"
+        cache.set(combined_diff_cache_key, combined_diff, expire=config.OBJECT_COUNTS_CACHE_EXPIRATION)
+
+        return render_template("update_object_counts.html", pipeline=pipeline, diffs=diffs, patch_digest=patch_digest)
+
+    @app.get("/object_counts/<patch_digest>.<ext>")
+    @unprotected
+    def object_counts(patch_digest: str, ext: str):
+        cache_key = f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.{ext}"
+        content = cache.get(cache_key)
+        return Response(content, mimetype='text/plain')
 
     @app.get("/pipeline/<int:pipeline_id>")
     def pipeline(pipeline_id: int):

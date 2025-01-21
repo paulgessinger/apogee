@@ -37,3 +37,7 @@ EOS_USER_NAME = os.environ["EOS_USER_NAME"]
 EOS_USER_PWD = os.environ["EOS_USER_PWD"]
 
 SESSION_REDIS_URL = os.environ.get("SESSION_REDIS_URL")
+
+
+OBJECT_COUNTS_CACHE_KEY_PREFIX = "object_counts_"
+OBJECT_COUNTS_CACHE_EXPIRATION = 60 * 60 * 24 * 7  # 7 days
