@@ -10,7 +10,7 @@ from flask import (
 )
 from authlib.integrations.flask_client import OAuth
 
-from apogee.model import CernUser
+from apogee.model import CernUser, CernUserResponse
 from apogee import config
 
 
@@ -76,7 +76,8 @@ def cern_login():
 @bp.get("/cern-callback")
 def cern_callback():
     token = oauth.cern.authorize_access_token()
-    session["cern_user"] = CernUser(**token["userinfo"])
+    cern_user = CernUserResponse(**token["userinfo"])
+    session["cern_user"] = CernUser(name=cern_user.name, email=cern_user.email)
 
     target = request.args.get("next", url_for("index"))
 

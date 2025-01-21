@@ -1,12 +1,22 @@
 from datetime import datetime
 import re
+import dataclasses
 
 from pydantic import BaseModel, AwareDatetime
 
 from apogee.model import CommitHash, URL
 
 
-class User(BaseModel):
+class UserResponse(BaseModel):
+    login: str
+    id: int
+    url: str
+    html_url: URL
+    avatar_url: URL
+
+
+@dataclasses.dataclass
+class User:
     login: str
     id: int
     url: str

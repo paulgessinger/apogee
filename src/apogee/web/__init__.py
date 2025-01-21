@@ -38,7 +38,7 @@ import logging
 from async_lru import alru_cache
 
 from apogee.cli import add_cli, update_references
-from apogee.model.github import User
+from apogee.model.github import User, UserResponse
 from apogee.model.gitlab import CompareResult, Job, Pipeline
 from apogee.model.record import Patch
 from apogee.model.db import db
@@ -197,9 +197,9 @@ def create_app():
             else:
                 resp = oauth.github.get("user")
                 resp.raise_for_status()
-                user = User(**resp.json())
+                user = UserResponse(**resp.json())
 
-                web_session["gh_user"] = user
+                web_session["gh_user"] = User(**user.dict())
                 g.gh_user = web_session["gh_user"]
         else:
             g.gh_user = web_session["gh_user"]
