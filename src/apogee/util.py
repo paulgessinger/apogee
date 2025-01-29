@@ -155,7 +155,7 @@ def create_patch_from_diffs(
     # Start with the patch header
     lines = [
         f"From {content_hash} Mon Sep 17 00:00:00 2001",
-        f"From: {author_name} <{author_email}>",
+        f"From: {author_name} <>",
         f"Date: {now.strftime('%a, %d %b %Y %H:%M:%S %z')}",
         f"Subject: [PATCH] {subject}",
         "",
@@ -190,10 +190,6 @@ def create_patch_from_diffs(
         total_plus += plus
         total_minus += minus
         
-        # Generate consistent hashes for the index line
-        old_hash = hashlib.sha1(f"old-{filename}".encode()).hexdigest()
-        new_hash = hashlib.sha1(f"new-{filename}".encode()).hexdigest()
-        
         # Replace the paths in the diff content
         new_diff = diff.replace(
             f"--- {input_path}",
@@ -205,17 +201,17 @@ def create_patch_from_diffs(
             new_diff
         )
         
-        processed_diffs.append((filename, new_diff, old_hash, new_hash))
+        processed_diffs.append((filename, new_diff))
     
     lines.extend(file_changes)
     lines.append(f" {len(processed_diffs)} files changed, {total_plus} insertions(+), {total_minus} deletions(-)")
     lines.append("")
     
     # Add each diff with git diff header
-    for filename, diff_content, old_hash, new_hash in processed_diffs:
+    for filename, diff_content in processed_diffs:
         lines.extend([
             f"diff --git a/{filename} b/{filename}",
-            f"index {old_hash[:40]}..{new_hash[:40]} 100644",
+            "index 0000000..0000000",  # Fake index
             diff_content.rstrip(),
             ""  # Empty line between diffs
         ])
@@ -223,7 +219,7 @@ def create_patch_from_diffs(
     # Add git patch footer
     lines.extend([
         "-- ",
-        ""
+        "Apogee"
     ])
     
     return "\n".join(lines)
