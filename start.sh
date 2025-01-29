@@ -9,7 +9,7 @@ flask db upgrade
 
 CELERY_WORKERS=${CELERY_WORKERS:-4}
 
-celery -A make_celery worker --concurrency ${CELERY_WORKERS} --loglevel=info &
+celery -A make_celery worker --concurrency ${CELERY_WORKERS} --pool threads --loglevel=info &
 pid=$!
 
 function teardown() {
@@ -24,4 +24,4 @@ trap teardown EXIT
 workers=${GUNICORN_WORKERS:-4}
 port=${PORT:-5001}
 
-gunicorn "apogee.web:create_app()" --workers $workers --bind "0.0.0.0:$port"
+gunicorn "apogee.web:create_app()" --threads $workers --bind "0.0.0.0:$port"
