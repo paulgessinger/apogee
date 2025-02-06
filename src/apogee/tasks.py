@@ -40,6 +40,12 @@ def celery_init_app(app: Flask) -> Celery:
     )
     celery_app.conf.task_eager_propagates = celery_app.conf.task_always_eager
 
+    worker_max_tasks_per_child = os.environ.get("CELERY_WORKER_MAX_TASKS_PER_CHILD")
+
+    celery_app.conf.worker_max_tasks_per_child = (
+        int(worker_max_tasks_per_child) if worker_max_tasks_per_child else None
+    )
+
     if app.debug:
         logger.setLevel(logging.DEBUG)
 
