@@ -51,7 +51,10 @@ def celery_init_app(app: Flask) -> Celery:
 def proc_datetime(s: str) -> datetime | None:
     if s is None:
         return None
-    d = datetime.strptime(s, "%Y-%m-%d %H:%M:%S %z")
+    try:
+        d = datetime.strptime(s, "%Y-%m-%d %H:%M:%S %Z")
+    except ValueError:
+        d = datetime.strptime(s, "%Y-%m-%d %H:%M:%S %z")
     return d.astimezone(tz=timezone.utc)
 
 
