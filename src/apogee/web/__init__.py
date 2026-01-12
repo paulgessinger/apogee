@@ -90,7 +90,7 @@ class PatchContent:
 
 
 @alru_cache(maxsize=128)
-async def load_patch(url: str) -> str:
+async def load_patch(url: str) -> PatchContent:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             content = await resp.text()
@@ -403,9 +403,11 @@ def create_app():
         diffs = await get_object_counts_diffs(gl, owner, repo, pipeline_id)
 
         patch = create_patch_from_diffs(
-            [diff for _, _, diff in diffs], "Apogee", "apogee@example.com", "Object counts"
+            [diff for _, _, diff in diffs],
+            "Apogee",
+            "apogee@example.com",
+            "Object counts",
         )
-
 
         patch_digest = hashlib.sha256(
             "\n".join([diff for _, _, diff in diffs]).encode()
@@ -415,17 +417,28 @@ def create_app():
         cache.set(patch_cache_key, patch, expire=config.OBJECT_COUNTS_CACHE_EXPIRATION)
 
         combined_diff = combine_diffs([diff for _, _, diff in diffs])
-        combined_diff_cache_key = f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.diff"
-        cache.set(combined_diff_cache_key, combined_diff, expire=config.OBJECT_COUNTS_CACHE_EXPIRATION)
+        combined_diff_cache_key = (
+            f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.diff"
+        )
+        cache.set(
+            combined_diff_cache_key,
+            combined_diff,
+            expire=config.OBJECT_COUNTS_CACHE_EXPIRATION,
+        )
 
-        return render_template("update_object_counts.html", pipeline=pipeline, diffs=diffs, patch_digest=patch_digest)
+        return render_template(
+            "update_object_counts.html",
+            pipeline=pipeline,
+            diffs=diffs,
+            patch_digest=patch_digest,
+        )
 
     @app.get("/object_counts/<patch_digest>.<ext>")
     @unprotected
     def object_counts(patch_digest: str, ext: str):
         cache_key = f"{config.OBJECT_COUNTS_CACHE_KEY_PREFIX}{patch_digest}.{ext}"
         content = cache.get(cache_key)
-        return Response(content, mimetype='text/plain')
+        return Response(content, mimetype="text/plain")
 
     @app.get("/pipeline/<int:pipeline_id>")
     def pipeline(pipeline_id: int):
