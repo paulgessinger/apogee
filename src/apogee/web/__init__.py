@@ -873,7 +873,7 @@ def create_app():
                 # This can happen because we'll concurrently get webhooks
                 # for the same pipeline
                 # It should result in the same DB state
-                pass
+                db.session.rollback()
 
             flash(f"Pipeline started: #{pipeline.id}", "success")
             return (
